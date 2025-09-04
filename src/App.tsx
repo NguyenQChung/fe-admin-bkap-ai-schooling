@@ -12,8 +12,11 @@ import Buttons from "./pages/UiElements/Buttons";
 import LineChart from "./pages/Charts/LineChart";
 import BarChart from "./pages/Charts/BarChart";
 import Calendar from "./pages/Calendar";
-import BasicTables from "./pages/Tables/BasicTables";
+import School from "./pages/Tables/Schools";
+import Class from "./pages/Tables/Classes";
+import Teacher from "./pages/Tables/Teachers";
 import FormElements from "./pages/Forms/FormElements";
+import NewTeacher from "./pages/Forms/NewTeacher";
 import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
@@ -36,9 +39,12 @@ export default function App() {
 
             {/* Forms */}
             <Route path="/form-elements" element={<FormElements />} />
+            <Route path="/new-teacher" element={<NewTeacher />} />
 
             {/* Tables */}
-            <Route path="/basic-tables" element={<BasicTables />} />
+            <Route path="/schools" element={<School />} />
+            <Route path="/classes" element={<Class />} />
+            <Route path="/teachers" element={<Teacher />} />
 
             {/* Ui Elements */}
             <Route path="/alerts" element={<Alerts />} />

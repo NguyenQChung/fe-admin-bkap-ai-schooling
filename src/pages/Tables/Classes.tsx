@@ -3,32 +3,36 @@ import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
 import PageMeta from "../../components/common/PageMeta";
 
-export default function BasicTables() {
+export default function ClassPage() {
 
-  interface School {
+
+  interface Class {
     id: number;
     name: string;
-    address: string;
+    schoolId: number;
+    schoolName: string;
+    schoolAddress: string;
   }
 
-  const [schools, setSchools] = useState<School[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const API_URL = import.meta.env.VITE_API_URL || "";
 
   useEffect(() => {
-    fetch("http://localhost:8080/schools")
+    fetch(`${API_URL}/class`)
       .then((res) => res.json())
-      .then((data: School[]) => setSchools(data))
-      .catch((err) => console.error("Error fetching schools:", err));
+      .then((data: Class[]) => setClasses(data))
+      .catch((err) => console.error("Error fetching classes:", err));
   }, []);
 
   return (
     <>
       <PageMeta
-        title="React.js Basic Tables Dashboard | TailAdmin - Next.js Admin Dashboard Template"
-        description="This is React.js Basic Tables Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="Danh sách Lớp"
+        description="Danh sách lớp học kèm thông tin trường"
       />
-      <PageBreadcrumb pageTitle="Basic Tables" />
+      <PageBreadcrumb pageTitle="Danh sách Lớp" />
       <div className="space-y-6">
-        <ComponentCard title="Danh sách Trường">
+        <ComponentCard title="Danh sách Lớp">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -36,19 +40,21 @@ export default function BasicTables() {
                   ID
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tên Trường
+                  Tên Lớp
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Địa chỉ
+                  Trường
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {schools.map((school) => (
-                <tr key={school.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">{school.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{school.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{school.address}</td>
+              {classes.map((cls) => (
+                <tr key={cls.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">{cls.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{cls.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {cls.schoolName}
+                  </td>
                 </tr>
               ))}
             </tbody>
