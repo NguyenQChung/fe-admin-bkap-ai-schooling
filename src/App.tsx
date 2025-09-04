@@ -21,6 +21,7 @@ import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
+import Student from "./pages/Tables/Students"
 
 export default function App() {
   return (
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="/schools" element={<School />} />
             <Route path="/classes" element={<Class />} />
             <Route path="/teachers" element={<Teacher />} />
+             <Route path="/students" element={<Student />} />
 
             {/* Ui Elements */}
             <Route path="/alerts" element={<Alerts />} />
