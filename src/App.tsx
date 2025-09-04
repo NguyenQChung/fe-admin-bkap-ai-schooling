@@ -21,8 +21,9 @@ import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
-import Student from "./pages/Tables/Students"
-
+import Student from "./pages/Tables/Students";
+import DefaultReply from "./pages/Tables/DefaultReply";
+import ForbiddenKeyword from "./pages/Tables/Forbiddenkeyword";
 export default function App() {
   return (
     <>
@@ -46,8 +47,9 @@ export default function App() {
             <Route path="/schools" element={<School />} />
             <Route path="/classes" element={<Class />} />
             <Route path="/teachers" element={<Teacher />} />
-             <Route path="/students" element={<Student />} />
-
+            <Route path="/students" element={<Student />} />
+            <Route path="/DefaultReply" element={<DefaultReply />} />
+            <Route path="/Forbidden-Keyword" element={<ForbiddenKeyword />} />
             {/* Ui Elements */}
             <Route path="/alerts" element={<Alerts />} />
             <Route path="/avatars" element={<Avatars />} />
