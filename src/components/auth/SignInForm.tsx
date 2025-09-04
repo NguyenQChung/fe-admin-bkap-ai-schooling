@@ -8,7 +8,7 @@ import Button from "../ui/button/Button";
 
 export default function SignInForm() {
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
@@ -20,7 +20,7 @@ export default function SignInForm() {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       });
 
       if (!res.ok) throw new Error("Login failed");
@@ -120,8 +120,8 @@ export default function SignInForm() {
                   </Label>
                   <Input
                     placeholder="info@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
                   />
                 </div>
                 <div>
