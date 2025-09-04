@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   function toggleDropdown() {
     setIsOpen(!isOpen);
@@ -13,36 +15,59 @@ export default function UserDropdown() {
   function closeDropdown() {
     setIsOpen(false);
   }
+
+  useEffect(() => {
+    // mỗi lần render lại, đọc token trong localStorage
+    const storedToken = localStorage.getItem("token");
+    setToken(storedToken);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token"); // xoá token
+    setToken(null); // update state
+    navigate("/signin"); // chuyển về trang login
+  };
+
   return (
     <div className="relative">
-      <button
-        onClick={toggleDropdown}
-        className="flex items-center text-gray-700 dropdown-toggle dark:text-gray-400"
-      >
-        <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <img src="/images/user/owner.jpg" alt="User" />
-        </span>
-
-        <span className="block mr-1 font-medium text-theme-sm">Musharof</span>
-        <svg
-          className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${
-            isOpen ? "rotate-180" : ""
-          }`}
-          width="18"
-          height="20"
-          viewBox="0 0 18 20"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
+      {token ? (
+        // --- Nếu đã login ---
+        <button
+          onClick={toggleDropdown}
+          className="flex items-center text-gray-700 dropdown-toggle dark:text-gray-400"
         >
-          <path
-            d="M4.3125 8.65625L9 13.3437L13.6875 8.65625"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+          <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
+            <img src="/images/user/owner.jpg" alt="User" />
+          </span>
+          <span className="block mr-1 font-medium text-theme-sm">admin</span>
+          <svg
+            className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+              }`}
+            width="18"
+            height="20"
+            viewBox="0 0 18 20"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M4.3125 8.65625L9 13.3437L13.6875 8.65625"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      ) : (
+        // --- Nếu chưa login ---
+        <Link
+          to="/signin"
+          className="px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600"
+        >
+          Login
+        </Link>
+      )}
+
 
       <Dropdown
         isOpen={isOpen}
@@ -154,7 +179,12 @@ export default function UserDropdown() {
               fill=""
             />
           </svg>
-          Sign out
+          <button
+            onClick={handleLogout}
+            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:text-red-400 dark:hover:bg-gray-700"
+          >
+            Sign Out
+          </button>
         </Link>
       </Dropdown>
     </div>
