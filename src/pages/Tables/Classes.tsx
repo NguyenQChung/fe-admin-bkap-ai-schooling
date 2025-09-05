@@ -18,6 +18,10 @@ import Button from '../../components/ui/button/Button';
 
 
 export default function ClassPage() {
+  interface School {
+    id: number;
+    name: string;
+  }
 
 
   interface Class {
@@ -33,6 +37,8 @@ export default function ClassPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const classesPerPage = 10;
   const [editingClass, setEditingClass] = useState<Class | null>(null);
+  const [schoolId, setSchoolId] = useState<number | "">("");
+  const [schools, setSchools] = useState<School[]>([]);
 
   useEffect(() => {
     fetch(`${API_URL}/class`)
@@ -85,6 +91,34 @@ export default function ClassPage() {
       }
     }
   };
+
+  // Mở modal edit
+  const handleEdit = (cls: Class) => {
+    setEditingClass(cls);
+  };
+
+  // Lưu thay đổi
+  const handleSaveEdit = async () => {
+    if (!editingClass) return;
+    try {
+      const res = await axios.put(`${API_URL}/class/${editingClass.id}`, editingClass);
+      setClasses((prev) =>
+        prev.map((s) => (s.id === editingClass.id ? res.data : s))
+      );
+      setEditingClass(null);
+      MySwal.fire("Thành công", "Cập nhật Lớp thành công", "success");
+    } catch (err) {
+      MySwal.fire("Lỗi", "Không thể cập nhật", "error");
+    }
+  };
+
+  // load danh sách School để chọn lớp chủ nhiệm
+  useEffect(() => {
+    fetch(`${API_URL}/schools`)
+      .then((res) => res.json())
+      .then((data: School[]) => setSchools(data))
+      .catch((err) => console.error("Error fetching classes:", err));
+  }, []);
 
   return (
     <>
@@ -159,6 +193,51 @@ export default function ClassPage() {
           </div>
         </ComponentCard>
       </div>
+
+
+      <Dialog open={!!editingClass} onOpenChange={() => setEditingClass(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa Lớp</DialogTitle>
+          </DialogHeader>
+          <input
+            type="text"
+            value={editingClass?.name || ""}
+            onChange={(e) =>
+              setEditingClass({ ...editingClass!, name: e.target.value })
+            }
+            className="w-full border rounded px-3 py-2 mb-3"
+          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Thuộc Trường
+            </label>
+            <select
+              value={editingClass?.schoolId || ""}
+              onChange={(e) =>
+                setEditingClass({
+                  ...editingClass!,
+                  schoolId: e.target.value ? Number(e.target.value) : 0, 
+                })
+              }
+              className="mt-1 block w-full border rounded-md px-3 py-2"
+            >
+              <option value="">— Chọn trường —</option>
+              {schools.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingClass(null)}>
+              Hủy
+            </Button>
+            <Button onClick={handleSaveEdit}>Lưu</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
