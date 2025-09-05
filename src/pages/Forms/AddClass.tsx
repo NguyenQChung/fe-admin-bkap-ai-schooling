@@ -4,27 +4,41 @@ import ComponentCard from "../../components/common/ComponentCard";
 import PageMeta from "../../components/common/PageMeta";
 import Swal from "sweetalert2";
 
-export default function AddSchool() {
+
+export default function AddClass() {
+  interface School {
+    id: number;
+    name: string;
+  }
 
   const API_URL = import.meta.env.VITE_API_URL || "";
 
   const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
+  const [schoolId, setSchoolId] = useState<number | "">("");
+  const [schools, setSchools] = useState<School[]>([]);
 
+  // load danh sách School để chọn lớp chủ nhiệm
+  useEffect(() => {
+    fetch(`${API_URL}/schools`)
+      .then((res) => res.json())
+      .then((data: School[]) => setSchools(data))
+      .catch((err) => console.error("Error fetching classes:", err));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const teacherData = {
+
+    const classData = {
       name,
-      address,
+      schoolId: schoolId || null,
     };
 
     try {
-      const res = await fetch(`${API_URL}/schools`, {
+      const res = await fetch(`${API_URL}/class`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(teacherData),
+        body: JSON.stringify(classData),
       });
 
       if (!res.ok) throw new Error("Failed to create school");
@@ -37,15 +51,12 @@ export default function AddSchool() {
         showConfirmButton: false,
       });
       setName("");
-      setAddress("");
     } catch (err) {
       console.error(err);
       Swal.fire({
         icon: "error",
         title: "Lỗi",
-        text: "Tạo lớp học thất bại!",
-        timer: 2000,
-        showConfirmButton: false,
+        text: "Có lỗi khi tạo lớp học!",
       });
     }
   };
@@ -75,21 +86,27 @@ export default function AddSchool() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Địa Chỉ
+                Lớp Chủ nhiệm
               </label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+              <select
+                value={schoolId}
+                onChange={(e) => setSchoolId(e.target.value ? Number(e.target.value) : "")}
                 className="mt-1 block w-full border rounded-md px-3 py-2"
-              />
+              >
+                <option value="">— Chọn lớp —</option>
+                {schools.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <button
               type="submit"
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
             >
-              Thêm Trường Học
+              Thêm Lớp Học
             </button>
           </form>
         </ComponentCard>
