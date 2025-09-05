@@ -4,9 +4,17 @@ import ComponentCard from "../../components/common/ComponentCard";
 import PageMeta from "../../components/common/PageMeta";
 import { Edit, Trash2 } from "lucide-react";
 import axios from "axios";
-import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../../components/ui/dialog"
+import Button from '../../components/ui/button/Button';
+
 
 
 
@@ -23,6 +31,8 @@ export default function School() {
   const API_URL = import.meta.env.VITE_API_URL || "";
   const [currentPage, setCurrentPage] = useState(1);
   const schoolsPerPage = 10;
+  const [editingSchool, setEditingSchool] = useState<School | null>(null); // school đang edit
+
 
   useEffect(() => {
     fetch(`${API_URL}/schools`)
@@ -77,6 +87,26 @@ export default function School() {
     }
   };
 
+  // Mở modal edit
+  const handleEdit = (school: School) => {
+    setEditingSchool(school);
+  };
+
+  // Lưu thay đổi
+  const handleSaveEdit = async () => {
+    if (!editingSchool) return;
+    try {
+      const res = await axios.put(`${API_URL}/schools/${editingSchool.id}`, editingSchool);
+      setSchools((prev) =>
+        prev.map((s) => (s.id === editingSchool.id ? res.data : s))
+      );
+      setEditingSchool(null);
+      MySwal.fire("Thành công", "Cập nhật trường thành công", "success");
+    } catch (err) {
+      MySwal.fire("Lỗi", "Không thể cập nhật", "error");
+    }
+  };
+
   return (
     <>
       <PageMeta
@@ -112,7 +142,9 @@ export default function School() {
                     <td className="px-6 py-4 whitespace-nowrap">{school.address}</td>
                     <td className="px-2 py-4 text-left">
                       <div className="flex space-x-2">
-                        <button className="flex items-center px-3 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600">
+                        <button
+                          onClick={() => handleEdit(school)}
+                          className="flex items-center px-3 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600">
                           <Edit />
                         </button>
                         <button
@@ -149,6 +181,37 @@ export default function School() {
           </div>
         </ComponentCard>
       </div>
+
+
+      <Dialog open={!!editingSchool} onOpenChange={() => setEditingSchool(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa Trường</DialogTitle>
+          </DialogHeader>
+          <input
+            type="text"
+            value={editingSchool?.name || ""}
+            onChange={(e) =>
+              setEditingSchool({ ...editingSchool!, name: e.target.value })
+            }
+            className="w-full border rounded px-3 py-2 mb-3"
+          />
+          <input
+            type="text"
+            value={editingSchool?.address || ""}
+            onChange={(e) =>
+              setEditingSchool({ ...editingSchool!, address: e.target.value })
+            }
+            className="w-full border rounded px-3 py-2 mb-3"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingSchool(null)}>
+              Hủy
+            </Button>
+            <Button onClick={handleSaveEdit}>Lưu</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
