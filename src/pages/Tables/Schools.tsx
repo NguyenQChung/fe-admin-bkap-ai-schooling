@@ -38,7 +38,6 @@ export default function School() {
     fetch(`${API_URL}/schools`)
       .then((res) => res.json())
       .then((data) => {
-        console.log("API /schools response:", data);
 
         // Nếu backend trả về { data: [...] }
         if (Array.isArray(data)) {
