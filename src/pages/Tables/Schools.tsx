@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
 import PageMeta from "../../components/common/PageMeta";
+import { Edit, Trash2 } from "lucide-react";
+
 
 export default function School() {
 
@@ -47,7 +49,7 @@ export default function School() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ID
+                  STT
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Tên Trường
@@ -55,15 +57,30 @@ export default function School() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Địa chỉ
                 </th>
+                <th className="w-1/4 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Hành động
+                </th>
               </tr>
             </thead>
             <tbody>
               {schools.length > 0 ? (
-                schools.map((school) => (
+                schools.map((school, index) => (
                   <tr key={school.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">{school.id}</td>
+                    {/* STT = index + 1 */}
+                    <td className="px-6 py-4 whitespace-nowrap">{index + 1}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{school.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{school.address}</td>
+                    <td className="px-2 py-4 text-left">
+                      <div className="flex space-x-2">
+                        <button className="flex items-center px-3 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600">
+                          <Edit />
+
+                        </button>
+                        <button className="flex items-center px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600">
+                          <Trash2 />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               ) : (

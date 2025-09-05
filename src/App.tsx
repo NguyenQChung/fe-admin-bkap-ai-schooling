@@ -24,6 +24,7 @@ import Home from "./pages/Dashboard/Home";
 import Student from "./pages/Tables/Students";
 import DefaultReply from "./pages/Tables/DefaultReply";
 import ForbiddenKeyword from "./pages/Tables/Forbiddenkeyword";
+import AddSchool from "./pages/Forms/AddSchool";
 export default function App() {
   return (
     <>
@@ -42,6 +43,7 @@ export default function App() {
             {/* Forms */}
             <Route path="/form-elements" element={<FormElements />} />
             <Route path="/new-teacher" element={<NewTeacher />} />
+            <Route path="/add-school" element={<AddSchool />} />
 
             {/* Tables */}
             <Route path="/schools" element={<School />} />
