@@ -3,6 +3,12 @@ import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
 import PageMeta from "../../components/common/PageMeta";
 import { Edit, Trash2 } from "lucide-react";
+import axios from "axios";
+import { toast } from "react-toastify";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
+
+
 
 
 export default function School() {
@@ -15,6 +21,8 @@ export default function School() {
 
   const [schools, setSchools] = useState<School[]>([]);
   const API_URL = import.meta.env.VITE_API_URL || "";
+  const [currentPage, setCurrentPage] = useState(1);
+  const schoolsPerPage = 10;
 
   useEffect(() => {
     fetch(`${API_URL}/schools`)
@@ -35,6 +43,39 @@ export default function School() {
       })
       .catch((err) => console.error("Error fetching schools:", err));
   }, []);
+
+  // Tính toán phân trang
+  const indexOfLastSchool = currentPage * schoolsPerPage;
+  const indexOfFirstSchool = indexOfLastSchool - schoolsPerPage;
+  const currentSchools = schools.slice(indexOfFirstSchool, indexOfLastSchool);
+  const totalPages = Math.ceil(schools.length / schoolsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // Xoa School
+  const MySwal = withReactContent(Swal);
+  const handleDelete = async (id: number) => {
+    const result = await MySwal.fire({
+      title: "Bạn có chắc muốn xoá?",
+      text: "Hành động này không thể hoàn tác!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Xoá",
+      cancelButtonText: "Hủy",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await axios.delete(`${API_URL}/schools/${id}`);
+        setSchools((prev) => prev.filter((s) => s.id !== id));
+        MySwal.fire("Đã xoá!", "Trường đã được xoá thành công.", "success");
+      } catch (err: any) {
+        MySwal.fire("Thất bại", "Không thể xoá trường.", "error");
+      }
+    }
+  };
 
   return (
     <>
@@ -63,20 +104,20 @@ export default function School() {
               </tr>
             </thead>
             <tbody>
-              {schools.length > 0 ? (
-                schools.map((school, index) => (
+              {currentSchools.length > 0 ? (
+                currentSchools.map((school, index) => (
                   <tr key={school.id}>
-                    {/* STT = index + 1 */}
-                    <td className="px-6 py-4 whitespace-nowrap">{index + 1}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{indexOfFirstSchool + index + 1}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{school.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{school.address}</td>
                     <td className="px-2 py-4 text-left">
                       <div className="flex space-x-2">
                         <button className="flex items-center px-3 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600">
                           <Edit />
-
                         </button>
-                        <button className="flex items-center px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600">
+                        <button
+                          onClick={() => handleDelete(school.id)}
+                          className="flex items-center px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600">
                           <Trash2 />
                         </button>
                       </div>
@@ -85,13 +126,27 @@ export default function School() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={3} className="text-center py-4">
-                    No schools found
+                  <td colSpan={4} className="text-center py-4">
+                    Không có trường nào
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+
+          {/* Pagination */}
+          <div className="flex justify-center mt-4 space-x-2">
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => handlePageChange(i + 1)}
+                className={`px-3 py-1 border rounded ${currentPage === i + 1 ? "bg-blue-500 text-white" : "bg-white text-blue-500"
+                  }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
         </ComponentCard>
       </div>
     </>
