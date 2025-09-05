@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { ToastContainer, toast } from "react-toastify";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
 import NotFound from "./pages/OtherPage/NotFound";
@@ -25,11 +26,15 @@ import Student from "./pages/Tables/Students";
 import DefaultReply from "./pages/Tables/DefaultReply";
 import ForbiddenKeyword from "./pages/Tables/Forbiddenkeyword";
 import AddSchool from "./pages/Forms/AddSchool";
+import "react-toastify/dist/ReactToastify.css";
 export default function App() {
   return (
     <>
+
       <Router>
+
         <ScrollToTop />
+        <ToastContainer position="top-right" autoClose={2000} />
         <Routes>
           {/* Dashboard Layout */}
           <Route element={<AppLayout />}>
