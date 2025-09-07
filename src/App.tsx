@@ -29,6 +29,7 @@ import AddSchool from "./pages/Forms/AddSchool";
 import "react-toastify/dist/ReactToastify.css";
 import AddClass from "./pages/Forms/AddClass";
 import AddDefaultReply from "./pages/Forms/AddDefaultReply";
+import AddForbiddenkeyword from "./pages/Forms/AddForbiddenkeyword";
 export default function App() {
   return (
     <>
@@ -51,6 +52,10 @@ export default function App() {
             <Route path="/add-school" element={<AddSchool />} />
             <Route path="/add-class" element={<AddClass />} />
             <Route path="/add-default-reply" element={<AddDefaultReply />} />
+            <Route
+              path="/add-Forbidden-Keyword"
+              element={<AddForbiddenkeyword />}
+            />
             {/* Tables */}
             <Route path="/schools" element={<School />} />
             <Route path="/classes" element={<Class />} />

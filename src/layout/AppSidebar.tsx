@@ -91,9 +91,10 @@ const navItems: NavItem[] = [
     name: "ForbiddenKeyword",
     icon: <TableIcon />,
     subItems: [
+      { name: "Forbidden Keyword", path: "/Forbidden-Keyword", pro: false },
       {
-        name: "Forbidden Keyword",
-        path: "/Forbidden-Keyword",
+        name: "Add Forbidden Keyword",
+        path: "/add-Forbidden-Keyword",
         pro: false,
       },
     ],
