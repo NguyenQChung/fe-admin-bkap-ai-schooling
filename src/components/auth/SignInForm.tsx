@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router-dom";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
@@ -7,13 +7,13 @@ import Checkbox from "../form/input/Checkbox";
 import Button from "../ui/button/Button";
 
 export default function SignInForm() {
-
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
+  const navigate = useNavigate();
 
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
   const handleLogin = async () => {
     try {
@@ -23,20 +23,25 @@ export default function SignInForm() {
         body: JSON.stringify({ identifier, password }),
       });
 
-      if (!res.ok) throw new Error("Login failed");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Đăng nhập thất bại");
+      }
 
-      const token = await res.text();
-      console.log("Login success, token:", token);
-
+      const data = await res.json();
+      const token = data.token; // Lấy chuỗi JWT từ trường "token"
+      if (!token) {
+        throw new Error("Không tìm thấy token trong phản hồi");
+      }
+      console.log("✅ Đăng nhập thành công, token:", token);
       localStorage.setItem("token", token);
-      window.location.href = "/";
+      navigate("/");
     } catch (err) {
-      console.error(err);
-      alert("Login failed");
+      const error = err as Error; // Ép kiểu err thành Error
+      console.error("❌ Lỗi khi đăng nhập:", error.message);
+      alert("Đăng nhập thất bại: " + error.message);
     }
   };
-
-
 
   return (
     <div className="flex flex-col flex-1">
