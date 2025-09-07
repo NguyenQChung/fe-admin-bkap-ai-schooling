@@ -8,9 +8,9 @@ import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import Button from "../../components/ui/button/Button";
 
-interface DefaultReply {
+interface ForbiddenKeyword {
   id: number;
-  replyText: string;
+  keyword: string;
   createdBy: {
     id: number;
     username: string | null;
@@ -101,10 +101,12 @@ const getCurrentUser = async (
   }
 };
 
-export default function AddDefaultReply() {
+export default function AddForbiddenKeyword() {
   const API_URL = import.meta.env.VITE_API_URL || "";
-  const [replyText, setReplyText] = useState("");
-  const [defaultReplies, setDefaultReplies] = useState<DefaultReply[]>([]);
+  const [keyword, setKeyword] = useState("");
+  const [forbiddenKeywords, setForbiddenKeywords] = useState<
+    ForbiddenKeyword[]
+  >([]);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{
@@ -124,7 +126,7 @@ export default function AddDefaultReply() {
       }
       setCurrentUser(user);
 
-      // Lấy danh sách defaultReplies để kiểm tra trùng lặp
+      // Lấy danh sách forbiddenKeywords để kiểm tra trùng lặp
       const token = localStorage.getItem("token");
       const jwtToken = getJwtToken(token);
       if (!jwtToken) {
@@ -133,7 +135,7 @@ export default function AddDefaultReply() {
         return;
       }
 
-      fetch(`${API_URL}/default-replies`, {
+      fetch(`${API_URL}/forbidden-keywords`, {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
         },
@@ -154,17 +156,17 @@ export default function AddDefaultReply() {
         })
         .then((data) => {
           if (Array.isArray(data)) {
-            console.log("✅ Dữ liệu default-replies:", data);
-            setDefaultReplies(data);
+            console.log("✅ Dữ liệu forbidden-keywords:", data);
+            setForbiddenKeywords(data);
           } else if (data && Array.isArray(data.content)) {
-            setDefaultReplies(data.content);
+            setForbiddenKeywords(data.content);
           } else {
             console.error("Unexpected API format:", data);
-            setDefaultReplies([]);
+            setForbiddenKeywords([]);
           }
         })
         .catch((err) => {
-          console.error("Error fetching default replies:", err);
+          console.error("Error fetching forbidden keywords:", err);
           setMessage({
             type: "error",
             text: `❌ Lỗi: ${err.message || "Không thể tải dữ liệu!"}`,
@@ -185,14 +187,14 @@ export default function AddDefaultReply() {
     return str.trim().toLowerCase().replace(/\s+/g, " ");
   };
 
-  // Kiểm tra trùng lặp replyText
-  const checkDuplicateReplyText = (replyText: string) => {
-    const normalizedInput = normalizeString(replyText);
+  // Kiểm tra trùng lặp keyword
+  const checkDuplicateKeyword = (keyword: string) => {
+    const normalizedInput = normalizeString(keyword);
     if (!normalizedInput) {
       return "Từ khóa không được để trống.";
     }
-    const isDuplicate = defaultReplies.some(
-      (reply) => normalizeString(reply.replyText) === normalizedInput
+    const isDuplicate = forbiddenKeywords.some(
+      (kw) => normalizeString(kw.keyword) === normalizedInput
     );
     return isDuplicate
       ? "Từ khóa này đã tồn tại. Vui lòng chọn từ khóa khác."
@@ -207,7 +209,7 @@ export default function AddDefaultReply() {
       return;
     }
 
-    const duplicateMessage = checkDuplicateReplyText(replyText);
+    const duplicateMessage = checkDuplicateKeyword(keyword);
     if (duplicateMessage) {
       setDuplicateWarning(duplicateMessage);
       return;
@@ -230,20 +232,19 @@ export default function AddDefaultReply() {
     try {
       setIsLoading(true);
       const payload = {
-        replyText,
-        createdById: currentUser.id,
+        keyword,
       };
-      await axios.post(`${API_URL}/default-replies`, payload, {
+      await axios.post(`${API_URL}/forbidden-keywords`, payload, {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
         },
       });
       const MySwal = withReactContent(Swal);
-      MySwal.fire("Thành công", "Thêm default reply thành công", "success");
-      navigate("/DefaultReply");
+      MySwal.fire("Thành công", "Thêm forbidden keyword thành công", "success");
+      navigate("/Forbidden-Keyword");
     } catch (err: any) {
       const errorMessage =
-        err.response?.data?.message || "Không thể thêm default reply";
+        err.response?.data?.message || "Không thể thêm forbidden keyword";
       const MySwal = withReactContent(Swal);
       MySwal.fire("Lỗi", errorMessage, "error");
     } finally {
@@ -268,12 +269,12 @@ export default function AddDefaultReply() {
   return (
     <>
       <PageMeta
-        title="Thêm Default Reply | TailAdmin - Next.js Admin Dashboard Template"
-        description="Trang thêm mới Default Reply cho TailAdmin"
+        title="Thêm Forbidden Keyword | TailAdmin - Next.js Admin Dashboard Template"
+        description="Trang thêm mới Forbidden Keyword cho TailAdmin"
       />
-      <PageBreadcrumb pageTitle="Thêm Default Reply" />
+      <PageBreadcrumb pageTitle="Thêm Forbidden Keyword" />
       <div className="space-y-6">
-        <ComponentCard title="Thêm Default Reply">
+        <ComponentCard title="Thêm Forbidden Keyword">
           {message && (
             <div
               className={`p-2 rounded-md border ${
@@ -291,16 +292,16 @@ export default function AddDefaultReply() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Reply Text
+                  Keyword
                 </label>
                 <input
                   ref={inputRef}
                   type="text"
-                  value={replyText}
+                  value={keyword}
                   onChange={(e) => {
-                    const newReplyText = e.target.value;
-                    setReplyText(newReplyText);
-                    setDuplicateWarning(checkDuplicateReplyText(newReplyText));
+                    const newKeyword = e.target.value;
+                    setKeyword(newKeyword);
+                    setDuplicateWarning(checkDuplicateKeyword(newKeyword));
                   }}
                   className="w-full border rounded px-3 py-2"
                   required
@@ -327,7 +328,7 @@ export default function AddDefaultReply() {
               <div className="flex justify-end space-x-2">
                 <Button
                   variant="outline"
-                  onClick={() => navigate("/DefaultReply")}
+                  onClick={() => navigate("/Forbidden-Keyword")}
                   disabled={isLoading}
                 >
                   Hủy

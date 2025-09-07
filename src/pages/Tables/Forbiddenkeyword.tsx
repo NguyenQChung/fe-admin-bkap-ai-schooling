@@ -1,5 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import PageBreadcrumb from "../../components/common/PageBreadCrumb";
+import ComponentCard from "../../components/common/ComponentCard";
+import PageMeta from "../../components/common/PageMeta";
+import { Edit, Trash2, Plus } from "lucide-react";
+import axios from "axios";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "../../components/ui/dialog";
+import Button from "../../components/ui/button/Button";
 
 interface ForbiddenKeyword {
   id: number;
@@ -17,6 +33,16 @@ interface User {
   email: string;
 }
 
+const getJwtToken = (token: string | null): string | null => {
+  if (!token) return null;
+  try {
+    const parsedToken = JSON.parse(token);
+    return parsedToken.token || token;
+  } catch (e) {
+    return token;
+  }
+};
+
 const getCurrentUser = async (
   setMessage: (
     message: { type: "error" | "success"; text: string } | null
@@ -29,25 +55,16 @@ const getCurrentUser = async (
     return null;
   }
 
-  let jwtToken: string;
-  try {
-    const parsedToken = JSON.parse(token);
-    if (parsedToken.token) {
-      jwtToken = parsedToken.token;
-      console.log("🔍 Đã lấy chuỗi JWT từ JSON:", jwtToken);
-    } else {
-      console.error("❌ Không tìm thấy trường 'token' trong JSON");
-      setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
-      return null;
-    }
-  } catch (e) {
-    console.log("🔍 Token không phải JSON, sử dụng trực tiếp:", token);
-    jwtToken = token;
+  const jwtToken = getJwtToken(token);
+  if (!jwtToken) {
+    console.error("❌ Token không hợp lệ.");
+    setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
+    return null;
   }
 
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/auth/me`,
+      `${import.meta.env.VITE_API_URL || ""}/auth/me`,
       {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
@@ -93,39 +110,41 @@ const getCurrentUser = async (
   }
 };
 
-export default function ForbiddenKeywordTable() {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
-  const [data, setData] = useState<ForbiddenKeyword[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<ForbiddenKeyword | null>(null);
-  const [newKeyword, setNewKeyword] = useState({ keyword: "", createdById: 0 });
+export default function ForbiddenKeyword() {
+  const API_URL = import.meta.env.VITE_API_URL || "";
+  const [forbiddenKeywords, setForbiddenKeywords] = useState<
+    ForbiddenKeyword[]
+  >([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const forbiddenKeywordsPerPage = 10;
+  const [editingForbiddenKeyword, setEditingForbiddenKeyword] =
+    useState<ForbiddenKeyword | null>(null);
   const [message, setMessage] = useState<{
     type: "error" | "success";
     text: string;
   } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load current user
   useEffect(() => {
     console.log("🔍 Kiểm tra token:", localStorage.getItem("token"));
+    setIsLoading(true);
     getCurrentUser(setMessage).then((user) => {
+      setIsLoading(false);
       if (!user) {
         navigate("/signin");
         return;
       }
       setCurrentUser(user);
-      setNewKeyword({ keyword: "", createdById: user.id });
     });
   }, [navigate]);
 
-  // Load keywords
   useEffect(() => {
     if (!currentUser) return;
 
-    setIsLoading(true);
     const token = localStorage.getItem("token");
     if (!token) {
       setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
@@ -133,22 +152,14 @@ export default function ForbiddenKeywordTable() {
       return;
     }
 
-    let jwtToken: string;
-    try {
-      const parsedToken = JSON.parse(token);
-      if (parsedToken.token) {
-        jwtToken = parsedToken.token;
-      } else {
-        console.error("❌ Không tìm thấy trường 'token' trong JSON");
-        setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
-        navigate("/signin");
-        return;
-      }
-    } catch (e) {
-      console.log("🔍 Token không phải JSON, sử dụng trực tiếp:", token);
-      jwtToken = token;
+    const jwtToken = getJwtToken(token);
+    if (!jwtToken) {
+      setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
+      navigate("/signin");
+      return;
     }
 
+    setIsLoading(true);
     fetch(`${API_URL}/forbidden-keywords`, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
@@ -171,247 +182,173 @@ export default function ForbiddenKeywordTable() {
       .then((data) => {
         if (Array.isArray(data)) {
           console.log("✅ Dữ liệu forbidden-keywords:", data);
-          setData(data);
+          setForbiddenKeywords(data);
+        } else if (data && Array.isArray(data.content)) {
+          setForbiddenKeywords(data.content);
         } else {
-          console.error("❌ Dữ liệu forbidden-keywords không phải mảng:", data);
-          setMessage({ type: "error", text: "❌ Dữ liệu không hợp lệ!" });
+          console.error("Unexpected API format:", data);
+          setForbiddenKeywords([]);
         }
-        setIsLoading(false);
       })
       .catch((err) => {
-        const error = err as Error;
-        console.error("❌ Lỗi khi lấy dữ liệu:", error.message);
+        console.error("Error fetching forbidden keywords:", err);
         setMessage({
           type: "error",
-          text: `❌ Lỗi: ${error.message || "Không thể tải dữ liệu!"}`,
+          text: `❌ Lỗi: ${err.message || "Không thể tải dữ liệu!"}`,
         });
-        setIsLoading(false);
-      });
+      })
+      .finally(() => setIsLoading(false));
   }, [API_URL, currentUser, navigate]);
 
-  // Clear message after 3 seconds
   useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => setMessage(null), 3000);
-      return () => clearTimeout(timer);
+    if (editingForbiddenKeyword && inputRef.current) {
+      inputRef.current.focus();
     }
-  }, [message]);
+  }, [editingForbiddenKeyword]);
 
-  // Check for duplicate keywords
-  const isDuplicateKeyword = (text: string, excludeId?: number) => {
-    return data.some(
-      (r) =>
-        r.keyword.trim().toLowerCase() === text.trim().toLowerCase() &&
-        r.id !== excludeId
-    );
+  // Tính toán phân trang
+  const indexOfLastKeyword = currentPage * forbiddenKeywordsPerPage;
+  const indexOfFirstKeyword = indexOfLastKeyword - forbiddenKeywordsPerPage;
+  const currentForbiddenKeywords = forbiddenKeywords.slice(
+    indexOfFirstKeyword,
+    indexOfLastKeyword
+  );
+  const totalPages = Math.ceil(
+    forbiddenKeywords.length / forbiddenKeywordsPerPage
+  );
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
-  // Submit form
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUser) {
-      setMessage({ type: "error", text: "❌ Vui lòng đăng nhập để tiếp tục!" });
-      navigate("/signin");
+  // Xóa ForbiddenKeyword
+  const MySwal = withReactContent(Swal);
+  const handleDelete = async (id: number) => {
+    const result = await MySwal.fire({
+      title: "Bạn có chắc muốn xoá?",
+      text: "Hành động này không thể hoàn tác!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Xoá",
+      cancelButtonText: "Hủy",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
+          navigate("/signin");
+          return;
+        }
+
+        const jwtToken = getJwtToken(token);
+        if (!jwtToken) {
+          setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
+          navigate("/signin");
+          return;
+        }
+
+        setIsLoading(true);
+        await axios.delete(`${API_URL}/forbidden-keywords/${id}`, {
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+          },
+        });
+        setForbiddenKeywords((prev) => prev.filter((r) => r.id !== id));
+        MySwal.fire(
+          "Đã xoá!",
+          "Forbidden keyword đã được xoá thành công.",
+          "success"
+        );
+      } catch (err: any) {
+        MySwal.fire("Thất bại", "Không thể xoá forbidden keyword.", "error");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  // Mở modal edit
+  const handleEdit = (forbiddenKeyword: ForbiddenKeyword) => {
+    setEditingForbiddenKeyword(forbiddenKeyword);
+    setDuplicateWarning(null);
+  };
+
+  // Kiểm tra trùng lặp keyword
+  const checkDuplicateKeyword = (keyword: string, currentId?: number) => {
+    const normalizedInput = keyword.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!normalizedInput) {
+      return "Từ khóa không được để trống.";
+    }
+    const isDuplicate = forbiddenKeywords.some(
+      (kw) =>
+        kw.keyword.trim().toLowerCase().replace(/\s+/g, " ") ===
+          normalizedInput && kw.id !== currentId
+    );
+    return isDuplicate
+      ? "Từ khóa này đã tồn tại. Vui lòng chọn từ khóa khác."
+      : null;
+  };
+
+  // Lưu thay đổi
+  const handleSaveEdit = async () => {
+    if (!editingForbiddenKeyword || !currentUser) return;
+
+    const duplicateMessage = checkDuplicateKeyword(
+      editingForbiddenKeyword.keyword,
+      editingForbiddenKeyword.id
+    );
+    if (duplicateMessage) {
+      setDuplicateWarning(duplicateMessage);
       return;
     }
 
-    if (!newKeyword.keyword.trim()) {
-      setMessage({ type: "error", text: "⚠️ Từ khóa không được để trống!" });
-      return;
-    }
-
-    if (isDuplicateKeyword(newKeyword.keyword, editing?.id)) {
-      setMessage({ type: "error", text: "⚠️ Từ khóa này đã tồn tại!" });
-      return;
-    }
-
-    setIsSubmitting(true);
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
-      navigate("/signin");
-      return;
-    }
-
-    let jwtToken: string;
     try {
-      const parsedToken = JSON.parse(token);
-      if (parsedToken.token) {
-        jwtToken = parsedToken.token;
-      } else {
-        console.error("❌ Không tìm thấy trường 'token' trong JSON");
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
+        navigate("/signin");
+        return;
+      }
+
+      const jwtToken = getJwtToken(token);
+      if (!jwtToken) {
         setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
         navigate("/signin");
         return;
       }
-    } catch (e) {
-      console.log("🔍 Token không phải JSON, sử dụng trực tiếp:", token);
-      jwtToken = token;
-    }
 
-    try {
       const payload = {
-        keyword: newKeyword.keyword.trim(),
-      }; // Backend sets createdBy from authentication
-      console.log("📤 Gửi payload:", payload);
-
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${jwtToken}`,
+        keyword: editingForbiddenKeyword.keyword,
       };
 
-      const res = await fetch(
-        editing
-          ? `${API_URL}/forbidden-keywords/${editing.id}`
-          : `${API_URL}/forbidden-keywords`,
+      setIsLoading(true);
+      const res = await axios.put(
+        `${API_URL}/forbidden-keywords/${editingForbiddenKeyword.id}`,
+        payload,
         {
-          method: editing ? "PUT" : "POST",
-          headers,
-          body: JSON.stringify(payload),
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+          },
         }
       );
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error("❌ Lỗi từ server:", errorData);
-        if (res.status === 401) {
-          localStorage.removeItem("token");
-          setMessage({
-            type: "error",
-            text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
-          });
-          navigate("/signin");
-        }
-        setMessage({
-          type: "error",
-          text: `❌ Lỗi: ${
-            errorData.message ||
-            (editing ? "Cập nhật thất bại" : "Thêm mới thất bại")
-          }`,
-        });
-        return;
-      }
-
-      const result = await res.json();
-      if (editing) {
-        setData(data.map((r) => (r.id === result.id ? result : r)));
-        setMessage({ type: "success", text: "✅ Cập nhật thành công!" });
-      } else {
-        setData([...data, result]);
-        setMessage({ type: "success", text: "✅ Thêm thành công!" });
-      }
-
-      setEditing(null);
-      setNewKeyword({ keyword: "", createdById: currentUser.id });
-      setShowForm(false);
-    } catch (err) {
-      const error = err as Error;
-      console.error("❌ Lỗi khi gửi request:", error.message);
-      setMessage({
-        type: "error",
-        text: `❌ Lỗi: ${error.message || "Không thể kết nối server!"}`,
-      });
+      setForbiddenKeywords((prev) =>
+        prev.map((r) => (r.id === editingForbiddenKeyword.id ? res.data : r))
+      );
+      setEditingForbiddenKeyword(null);
+      setDuplicateWarning(null);
+      MySwal.fire(
+        "Thành công",
+        "Cập nhật forbidden keyword thành công",
+        "success"
+      );
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || "Không thể cập nhật";
+      MySwal.fire("Lỗi", errorMessage, "error");
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
-  };
-
-  // Delete keyword
-  const handleDelete = async (id: number) => {
-    if (!currentUser) {
-      setMessage({ type: "error", text: "❌ Vui lòng đăng nhập để tiếp tục!" });
-      navigate("/signin");
-      return;
-    }
-
-    if (!confirm("Bạn có chắc chắn muốn xóa?")) return;
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
-      navigate("/signin");
-      return;
-    }
-
-    let jwtToken: string;
-    try {
-      const parsedToken = JSON.parse(token);
-      if (parsedToken.token) {
-        jwtToken = parsedToken.token;
-      } else {
-        console.error("❌ Không tìm thấy trường 'token' trong JSON");
-        setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
-        navigate("/signin");
-        return;
-      }
-    } catch (e) {
-      console.log("🔍 Token không phải JSON, sử dụng trực tiếp:", token);
-      jwtToken = token;
-    }
-
-    try {
-      const res = await fetch(`${API_URL}/forbidden-keywords/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-        },
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error("❌ Lỗi từ server:", errorData);
-        if (res.status === 401) {
-          localStorage.removeItem("token");
-          setMessage({
-            type: "error",
-            text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
-          });
-          navigate("/signin");
-        }
-        setMessage({
-          type: "error",
-          text: `❌ Lỗi: ${errorData.message || "Xóa thất bại"}`,
-        });
-        return;
-      }
-
-      setData(data.filter((r) => r.id !== id));
-      setMessage({ type: "success", text: "✅ Xóa thành công!" });
-    } catch (err) {
-      const error = err as Error;
-      console.error("❌ Lỗi khi xóa:", error.message);
-      setMessage({
-        type: "error",
-        text: `❌ Lỗi: ${error.message || "Không thể kết nối server!"}`,
-      });
-    }
-  };
-
-  // Edit keyword
-  const handleEdit = (keyword: ForbiddenKeyword) => {
-    if (!currentUser) {
-      setMessage({ type: "error", text: "❌ Vui lòng đăng nhập để tiếp tục!" });
-      navigate("/signin");
-      return;
-    }
-
-    setEditing(keyword);
-    setNewKeyword({
-      keyword: keyword.keyword,
-      createdById: currentUser.id,
-    });
-    setShowForm(true);
-    setMessage(null);
-  };
-
-  // Handle logout
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setCurrentUser(null);
-    setData([]);
-    setNewKeyword({ keyword: "", createdById: 0 });
-    setMessage({ type: "success", text: "✅ Đăng xuất thành công!" });
-    navigate("/signin");
   };
 
   if (!currentUser) {
@@ -429,64 +366,26 @@ export default function ForbiddenKeywordTable() {
   }
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold">
-          Chào, {currentUser.username || currentUser.email}
-        </h2>
-        <button
-          onClick={handleLogout}
-          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-        >
-          Đăng xuất
-        </button>
-      </div>
-
-      <button
-        onClick={() => {
-          setShowForm(!showForm);
-          setEditing(null);
-          setNewKeyword({ keyword: "", createdById: currentUser.id });
-          setMessage(null);
-        }}
-        className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700"
-      >
-        {showForm
-          ? "Đóng form"
-          : editing
-          ? "✏️ Chỉnh sửa"
-          : "+ Thêm từ khóa mới"}
-      </button>
-
-      {showForm && (
-        <form
-          onSubmit={handleSubmit}
-          className="p-4 border rounded-lg bg-gray-50 space-y-3"
-        >
-          <div>
-            <label className="block font-medium">Từ khóa</label>
-            <input
-              type="text"
-              value={newKeyword.keyword}
-              onChange={(e) =>
-                setNewKeyword({ ...newKeyword, keyword: e.target.value })
-              }
-              className="w-full border rounded px-3 py-2 mt-1"
-              placeholder="Nhập từ khóa..."
-              required
-            />
+    <>
+      <PageMeta
+        title="Forbidden Keywords Dashboard | TailAdmin - Next.js Admin Dashboard Template"
+        description="This is Forbidden Keywords Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+      />
+      <PageBreadcrumb pageTitle="Forbidden Keywords" />
+      <div className="space-y-6">
+        <ComponentCard title="Danh sách Forbidden Keywords">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">
+              Chào, {currentUser.username || currentUser.email}
+            </h2>
+            <Button
+              variant="primary"
+              onClick={() => navigate("/add-forbidden-keyword")}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              <Plus className="mr-2 h-4 w-4" /> Thêm Forbidden Keyword
+            </Button>
           </div>
-
-          <div>
-            <label className="block font-medium">Người tạo</label>
-            <input
-              type="text"
-              value={currentUser.username || currentUser.email}
-              className="w-full border rounded px-3 py-2 mt-1 bg-gray-100"
-              disabled
-            />
-          </div>
-
           {message && (
             <div
               className={`p-2 rounded-md border ${
@@ -498,68 +397,178 @@ export default function ForbiddenKeywordTable() {
               {message.text}
             </div>
           )}
+          {isLoading ? (
+            <div className="text-center py-4">Đang tải...</div>
+          ) : (
+            <>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      STT
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Keyword
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Created By
+                    </th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Hành động
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentForbiddenKeywords.length > 0 ? (
+                    currentForbiddenKeywords.map((keyword, index) => (
+                      <tr key={keyword.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {indexOfFirstKeyword + index + 1}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {keyword.keyword}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {keyword.createdBy
+                            ? keyword.createdBy.username ||
+                              keyword.createdBy.email ||
+                              "Unknown User"
+                            : "Unknown User"}
+                        </td>
+                        <td className="px-2 py-4 text-left">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEdit(keyword)}
+                              className="flex items-center px-3 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600"
+                              disabled={isLoading}
+                            >
+                              <Edit />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(keyword.id)}
+                              className="flex items-center px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600"
+                              disabled={isLoading}
+                            >
+                              <Trash2 />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="text-center py-4">
+                        Không có forbidden keyword nào
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
 
-          <button
-            type="submit"
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Đang xử lý..." : editing ? "Cập nhật" : "Lưu"}
-          </button>
-        </form>
-      )}
-
-      {isLoading && <div className="text-center">Đang tải...</div>}
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse border border-gray-300 text-center">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border px-4 py-2">ID</th>
-              <th className="border px-4 py-2">Từ khóa</th>
-              <th className="border px-4 py-2">Người tạo</th>
-              <th className="border px-4 py-2">Hành động</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.length === 0 && !isLoading ? (
-              <tr>
-                <td colSpan={4} className="border px-4 py-2 text-gray-600">
-                  Không có dữ liệu để hiển thị
-                </td>
-              </tr>
-            ) : (
-              data.map((kw) => (
-                <tr key={kw.id} className="hover:bg-gray-50">
-                  <td className="border px-4 py-2">{kw.id}</td>
-                  <td className="border px-4 py-2">{kw.keyword}</td>
-                  <td className="border px-4 py-2">
-                    {kw.createdBy
-                      ? kw.createdBy.username ||
-                        kw.createdBy.email ||
-                        "Unknown User"
-                      : "Unknown User"}
-                  </td>
-                  <td className="border px-4 py-2 space-x-2">
-                    <button
-                      onClick={() => handleEdit(kw)}
-                      className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-                    >
-                      ✏️ Sửa
-                    </button>
-                    <button
-                      onClick={() => handleDelete(kw.id)}
-                      className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                    >
-                      🗑️ Xóa
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              <div className="flex justify-center mt-4 space-x-2">
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handlePageChange(i + 1)}
+                    className={`px-3 py-1 border rounded ${
+                      currentPage === i + 1
+                        ? "bg-blue-500 text-white"
+                        : "bg-white text-blue-500"
+                    }`}
+                    disabled={isLoading}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </ComponentCard>
       </div>
-    </div>
+
+      <Dialog
+        open={!!editingForbiddenKeyword}
+        onOpenChange={() => {
+          setEditingForbiddenKeyword(null);
+          setDuplicateWarning(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa Forbidden Keyword</DialogTitle>
+            <DialogDescription>
+              Chỉnh sửa nội dung của forbidden keyword. Vui lòng đảm bảo từ khóa
+              là duy nhất.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Keyword
+              </label>
+              <input
+                ref={inputRef}
+                type="text"
+                value={editingForbiddenKeyword?.keyword || ""}
+                onChange={(e) => {
+                  const newKeyword = e.target.value;
+                  setEditingForbiddenKeyword({
+                    ...editingForbiddenKeyword!,
+                    keyword: newKeyword,
+                  });
+                  setDuplicateWarning(
+                    checkDuplicateKeyword(
+                      newKeyword,
+                      editingForbiddenKeyword?.id
+                    )
+                  );
+                }}
+                className="w-full border rounded px-3 py-2"
+                disabled={isLoading}
+              />
+              {duplicateWarning && (
+                <p className="text-red-500 text-sm mt-1">{duplicateWarning}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Người tạo
+              </label>
+              <input
+                type="text"
+                value={
+                  editingForbiddenKeyword?.createdBy
+                    ? editingForbiddenKeyword.createdBy.username ||
+                      editingForbiddenKeyword.createdBy.email ||
+                      "Unknown User"
+                    : "Unknown User"
+                }
+                className="w-full border rounded px-3 py-2 bg-gray-100"
+                disabled
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditingForbiddenKeyword(null);
+                setDuplicateWarning(null);
+              }}
+              disabled={isLoading}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveEdit}
+              disabled={isLoading || !!duplicateWarning}
+            >
+              Lưu
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
