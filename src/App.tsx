@@ -28,12 +28,11 @@ import ForbiddenKeyword from "./pages/Tables/Forbiddenkeyword";
 import AddSchool from "./pages/Forms/AddSchool";
 import "react-toastify/dist/ReactToastify.css";
 import AddClass from "./pages/Forms/AddClass";
+import AddDefaultReply from "./pages/Forms/AddDefaultReply";
 export default function App() {
   return (
     <>
-
       <Router>
-
         <ScrollToTop />
         <ToastContainer position="top-right" autoClose={2000} />
         <Routes>
@@ -49,8 +48,9 @@ export default function App() {
             {/* Forms */}
             <Route path="/form-elements" element={<FormElements />} />
             <Route path="/new-teacher" element={<NewTeacher />} />
-            <Route path="/add-school" element={<AddSchool />} /> 
-            <Route path="/add-class" element={<AddClass />} /> 
+            <Route path="/add-school" element={<AddSchool />} />
+            <Route path="/add-class" element={<AddClass />} />
+            <Route path="/add-default-reply" element={<AddDefaultReply />} />
             {/* Tables */}
             <Route path="/schools" element={<School />} />
             <Route path="/classes" element={<Class />} />
