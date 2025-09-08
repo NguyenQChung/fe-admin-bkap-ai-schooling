@@ -5,7 +5,18 @@ import ComponentCard from "../../components/common/ComponentCard";
 import PageMeta from "../../components/common/PageMeta";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
-import Button from "../../components/ui/button/Button";
+
+// Custom debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
 
 interface Student {
   id: number;
@@ -126,8 +137,16 @@ export default function AddStudent() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{
+    username?: string;
+    phone?: string;
+  }>({});
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Debounced values for validation
+  const debouncedUsername = useDebounce(student.username, 500);
+  const debouncedPhone = useDebounce(student.phone, 500);
 
   // Clear message after 3 seconds
   useEffect(() => {
@@ -137,7 +156,14 @@ export default function AddStudent() {
     }
   }, [message]);
 
-  // Fetch user and classes
+  // Focus on first input
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
+  // Fetch user and data
   useEffect(() => {
     setIsLoading(true);
     getCurrentUser(setMessage).then((user) => {
@@ -147,7 +173,6 @@ export default function AddStudent() {
       }
       setCurrentUser(user);
 
-      // Fetch students for duplicate username check
       const token = localStorage.getItem("token");
       const jwtToken = getJwtToken(token);
       if (!jwtToken) {
@@ -156,13 +181,13 @@ export default function AddStudent() {
         return;
       }
 
-      // Fetch students
+      // Fetch students for duplicate checks
       fetch(`${API_URL}/students`, {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
         },
       })
-        .then((res) => {
+        .then(async (res) => {
           if (!res.ok) {
             if (res.status === 401) {
               localStorage.removeItem("token");
@@ -172,23 +197,29 @@ export default function AddStudent() {
               });
               navigate("/signin");
             }
-            throw new Error(`HTTP error! status: ${res.status}`);
+            const errorData = await res.text();
+            throw new Error(
+              `HTTP error! status: ${res.status}, message: ${
+                errorData || "Unknown error"
+              }`
+            );
           }
           return res.json();
         })
         .then((data) => {
           if (Array.isArray(data)) {
-            console.log("✅ Dữ liệu students:", data);
+            console.log("✅ Tải dữ liệu học sinh thành công");
             setStudents(data);
           } else if (data && Array.isArray(data.content)) {
+            console.log("✅ Tải dữ liệu học sinh thành công");
             setStudents(data.content);
           } else {
-            console.error("Unexpected API format:", data);
+            console.error("Unexpected API format for students");
             setStudents([]);
           }
         })
         .catch((err) => {
-          console.error("Error fetching students:", err);
+          console.error("❌ Lỗi khi tải học sinh:", err.message);
           setMessage({
             type: "error",
             text: `❌ Lỗi: ${err.message || "Không thể tải dữ liệu học sinh!"}`,
@@ -196,12 +227,12 @@ export default function AddStudent() {
         });
 
       // Fetch classes
-      fetch(`${API_URL}/classes`, {
+      fetch(`${API_URL}/class`, {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
         },
       })
-        .then((res) => {
+        .then(async (res) => {
           if (!res.ok) {
             if (res.status === 401) {
               localStorage.removeItem("token");
@@ -211,21 +242,26 @@ export default function AddStudent() {
               });
               navigate("/signin");
             }
-            throw new Error(`HTTP error! status: ${res.status}`);
+            const errorData = await res.text();
+            throw new Error(
+              `HTTP error! status: ${res.status}, message: ${
+                errorData || "Unknown error"
+              }`
+            );
           }
           return res.json();
         })
         .then((data) => {
           if (Array.isArray(data)) {
-            console.log("✅ Dữ liệu classes:", data);
+            console.log("✅ Tải dữ liệu lớp học thành công");
             setClasses(data);
           } else {
-            console.error("Unexpected classes API format:", data);
+            console.error("Unexpected API format for classes");
             setClasses([]);
           }
         })
         .catch((err) => {
-          console.error("Error fetching classes:", err);
+          console.error("❌ Lỗi khi tải lớp học:", err.message);
           setMessage({
             type: "error",
             text: `❌ Lỗi: ${err.message || "Không thể tải dữ liệu lớp học!"}`,
@@ -235,29 +271,36 @@ export default function AddStudent() {
     });
   }, [navigate]);
 
+  // Validate username and phone
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, []);
+    const usernameError = !debouncedUsername
+      ? "Username không được để trống."
+      : students.find(
+          (s) =>
+            normalizeString(s.username) === normalizeString(debouncedUsername)
+        )
+      ? "Username đã tồn tại."
+      : undefined;
+
+    const phoneError = !debouncedPhone
+      ? "Số điện thoại không được để trống."
+      : !isValidPhone(debouncedPhone)
+      ? "Số điện thoại không hợp lệ."
+      : students.find(
+          (s) => normalizeString(s.phone) === normalizeString(debouncedPhone)
+        )
+      ? "Số điện thoại đã tồn tại."
+      : undefined;
+
+    setValidationErrors({
+      username: usernameError,
+      phone: phoneError,
+    });
+  }, [debouncedUsername, debouncedPhone, students]);
 
   // Normalize string for duplicate check
   const normalizeString = (str: string): string => {
     return str.trim().toLowerCase().replace(/\s+/g, " ");
-  };
-
-  // Check for duplicate username
-  const isDuplicateUsername = (username: string) => {
-    const normalizedInput = normalizeString(username);
-    if (!normalizedInput) {
-      return "Username không được để trống.";
-    }
-    const isDuplicate = students.some(
-      (s) => normalizeString(s.username) === normalizedInput
-    );
-    return isDuplicate
-      ? "Username này đã tồn tại. Vui lòng chọn username khác."
-      : null;
   };
 
   // Validate phone number format (Vietnamese phone numbers)
@@ -272,11 +315,6 @@ export default function AddStudent() {
     if (!dateRegex.test(birthdate)) return false;
     const date = new Date(birthdate);
     return !isNaN(date.getTime()) && date <= new Date();
-  };
-
-  // Validate password
-  const isValidPassword = (password: string): boolean => {
-    return password.trim().length >= 6; // Minimum 6 characters
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -294,17 +332,6 @@ export default function AddStudent() {
     }
     if (!student.username.trim()) {
       setMessage({ type: "error", text: "⚠️ Username không được để trống!" });
-      return;
-    }
-    if (!student.defaultPassword.trim()) {
-      setMessage({ type: "error", text: "⚠️ Mật khẩu không được để trống!" });
-      return;
-    }
-    if (!isValidPassword(student.defaultPassword)) {
-      setMessage({
-        type: "error",
-        text: "⚠️ Mật khẩu phải có ít nhất 6 ký tự!",
-      });
       return;
     }
     if (!student.phone.trim()) {
@@ -334,9 +361,11 @@ export default function AddStudent() {
       return;
     }
 
-    const duplicateMessage = isDuplicateUsername(student.username);
-    if (duplicateMessage) {
-      setMessage({ type: "error", text: duplicateMessage });
+    if (Object.values(validationErrors).some((error) => error)) {
+      setMessage({
+        type: "error",
+        text: "⚠️ Vui lòng sửa các lỗi trong biểu mẫu!",
+      });
       return;
     }
 
@@ -359,7 +388,7 @@ export default function AddStudent() {
       const payload = {
         fullName: student.fullName.trim(),
         username: student.username.trim(),
-        defaultPassword: student.defaultPassword.trim(),
+        defaultPassword: student.defaultPassword.trim() || "123456",
         phone: student.phone.trim(),
         birthdate: student.birthdate,
         hobbies: student.hobbies.trim() || null,
@@ -390,8 +419,8 @@ export default function AddStudent() {
             JSON.stringify(errorData, null, 2)
           );
         } catch (jsonErr) {
-          console.error("❌ Không thể parse lỗi từ server:", jsonErr);
-          errorData = { message: "Lỗi server không xác định" };
+          errorData = await res.text();
+          console.error("❌ Lỗi từ server:", errorData);
         }
         if (res.status === 401) {
           localStorage.removeItem("token");
@@ -403,18 +432,37 @@ export default function AddStudent() {
         } else {
           setMessage({
             type: "error",
-            text: `❌ Lỗi: ${errorData.message || "Thêm mới thất bại"}`,
+            text: `❌ Lỗi: ${
+              typeof errorData === "object" && errorData.message
+                ? errorData.message
+                : errorData || "Thêm mới thất bại"
+            }`,
           });
         }
         return;
       }
 
       const MySwal = withReactContent(Swal);
-      MySwal.fire("Thành công", "Thêm học sinh thành công", "success");
+      MySwal.fire({
+        icon: "success",
+        title: "Thành công!",
+        text: "Thêm học sinh thành công!",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+      setStudent({
+        fullName: "",
+        username: "",
+        defaultPassword: "",
+        phone: "",
+        birthdate: "",
+        hobbies: "",
+        classId: "",
+      });
       navigate("/students");
     } catch (err) {
       const error = err as Error;
-      console.error("❌ Lỗi khi gửi request:", error);
+      console.error("❌ Lỗi khi gửi request:", error.message);
       setMessage({
         type: "error",
         text: `❌ Lỗi: ${error.message || "Không thể kết nối server!"}`,
@@ -430,7 +478,7 @@ export default function AddStudent() {
         Vui lòng đăng nhập để sử dụng tính năng này!
         <button
           onClick={() => navigate("/signin")}
-          className="ml-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          className="ml-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
         >
           Đăng nhập
         </button>
@@ -461,12 +509,11 @@ export default function AddStudent() {
           {isLoading ? (
             <div className="text-center py-4">Đang tải...</div>
           ) : (
-            <form
-              onSubmit={handleSubmit}
-              className="p-4 border rounded-lg bg-gray-50 space-y-3"
-            >
+            <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
-                <label className="block font-medium">Họ tên</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Họ tên *
+                </label>
                 <input
                   ref={inputRef}
                   type="text"
@@ -474,85 +521,113 @@ export default function AddStudent() {
                   onChange={(e) =>
                     setStudent({ ...student, fullName: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2 mt-1"
+                  className="mt-1 block w-full border rounded-md px-3 py-2"
                   placeholder="Nhập họ tên..."
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
-                <label className="block font-medium">Username</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Username *
+                </label>
                 <input
                   type="text"
                   value={student.username}
                   onChange={(e) =>
                     setStudent({ ...student, username: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2 mt-1"
+                  className="mt-1 block w-full border rounded-md px-3 py-2"
                   placeholder="Nhập username..."
                   required
+                  disabled={isSubmitting}
                 />
+                {validationErrors.username && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {validationErrors.username}
+                  </p>
+                )}
               </div>
               <div>
-                <label className="block font-medium">Mật khẩu mặc định</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Mật khẩu mặc định
+                </label>
                 <input
                   type="password"
                   value={student.defaultPassword}
                   onChange={(e) =>
                     setStudent({ ...student, defaultPassword: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2 mt-1"
-                  placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)..."
-                  required
+                  className="mt-1 block w-full border rounded-md px-3 py-2"
+                  placeholder="Nhập mật khẩu (để trống sẽ dùng 123456)"
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
-                <label className="block font-medium">Điện thoại</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Điện thoại *
+                </label>
                 <input
                   type="tel"
                   value={student.phone}
                   onChange={(e) =>
                     setStudent({ ...student, phone: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2 mt-1"
+                  className="mt-1 block w-full border rounded-md px-3 py-2"
                   placeholder="Nhập số điện thoại (VD: 0987654321)"
                   required
+                  disabled={isSubmitting}
                 />
+                {validationErrors.phone && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {validationErrors.phone}
+                  </p>
+                )}
               </div>
               <div>
-                <label className="block font-medium">Ngày sinh</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Ngày sinh *
+                </label>
                 <input
                   type="date"
                   value={student.birthdate}
                   onChange={(e) =>
                     setStudent({ ...student, birthdate: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2 mt-1"
+                  className="mt-1 block w-full border rounded-md px-3 py-2"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
-                <label className="block font-medium">Sở thích</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Sở thích
+                </label>
                 <input
                   type="text"
                   value={student.hobbies}
                   onChange={(e) =>
                     setStudent({ ...student, hobbies: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2 mt-1"
+                  className="mt-1 block w-full border rounded-md px-3 py-2"
                   placeholder="Nhập sở thích..."
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
-                <label className="block font-medium">Lớp học</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Lớp học *
+                </label>
                 <select
                   value={student.classId}
                   onChange={(e) =>
                     setStudent({ ...student, classId: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2 mt-1"
+                  className="mt-1 block w-full border rounded-md px-3 py-2"
                   required
+                  disabled={isSubmitting}
                 >
-                  <option value="">Chọn lớp học</option>
+                  <option value="">— Chọn lớp —</option>
                   {classes.map((cls) => (
                     <option key={cls.id} value={cls.id}>
                       {cls.name}
@@ -561,30 +636,37 @@ export default function AddStudent() {
                 </select>
               </div>
               <div>
-                <label className="block font-medium">Người tạo</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Người tạo
+                </label>
                 <input
                   type="text"
                   value={
                     currentUser.username || currentUser.email || "Unknown User"
                   }
-                  className="w-full border rounded px-3 py-2 mt-1 bg-gray-100"
+                  className="mt-1 block w-full border rounded-md px-3 py-2 bg-gray-100"
                   disabled
                 />
               </div>
               <div className="flex justify-end space-x-2">
-                <Button
-                  variant="outline"
+                <button
+                  type="button"
                   onClick={() => navigate("/students")}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 disabled:bg-gray-400"
                   disabled={isLoading || isSubmitting}
                 >
                   Hủy
-                </Button>
+                </button>
                 <button
                   type="submit"
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
-                  disabled={isLoading || isSubmitting}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                  disabled={
+                    isLoading ||
+                    isSubmitting ||
+                    Object.values(validationErrors).some((error) => error)
+                  }
                 >
-                  {isSubmitting ? "Đang xử lý..." : "Lưu"}
+                  {isSubmitting ? "Đang xử lý..." : "Thêm Học Sinh"}
                 </button>
               </div>
             </form>

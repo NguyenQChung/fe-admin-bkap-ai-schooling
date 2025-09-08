@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
@@ -12,118 +12,63 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
 } from "../../components/ui/dialog";
 import Button from "../../components/ui/button/Button";
+
+// Custom debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
+interface Class {
+  id: number;
+  name: string;
+}
 
 interface Student {
   id: number;
   fullName: string;
   username: string;
+  defaultPassword: string;
+  code: string;
+  classEntity: Class;
+  email: string | null;
   phone: string;
-  birthdate: string;
   hobbies: string;
+  isActive: boolean;
+  birthdate: string;
+  createdAt: string;
 }
-
-interface User {
-  id: number;
-  username: string | null;
-  email: string;
-}
-
-const getJwtToken = (token: string | null): string | null => {
-  if (!token) return null;
-  try {
-    const parsedToken = JSON.parse(token);
-    return parsedToken.token || token;
-  } catch (e) {
-    return token;
-  }
-};
-
-const getCurrentUser = async (
-  setMessage: (
-    message: { type: "error" | "success"; text: string } | null
-  ) => void
-): Promise<User | null> => {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    console.error("❌ Không tìm thấy token. Vui lòng đăng nhập lại.");
-    setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
-    return null;
-  }
-
-  const jwtToken = getJwtToken(token);
-  if (!jwtToken) {
-    console.error("❌ Token không hợp lệ.");
-    setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
-    return null;
-  }
-
-  try {
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL || ""}/auth/me`,
-      {
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-        },
-      }
-    );
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error(
-        `❌ Lỗi khi lấy user, status: ${response.status} ${response.statusText}`,
-        errorData
-      );
-      setMessage({
-        type: "error",
-        text: `❌ Lỗi: ${
-          errorData.message || "Không thể lấy thông tin người dùng"
-        }`,
-      });
-      if (response.status === 401) {
-        localStorage.removeItem("token");
-        setMessage({
-          type: "error",
-          text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
-        });
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const userData = await response.json();
-    console.log("✅ User lấy được:", userData);
-    return {
-      id: userData.id,
-      username: userData.username || userData.email,
-      email: userData.email,
-    };
-  } catch (err) {
-    const error = err as Error;
-    console.error("❌ Lỗi khi lấy thông tin user:", error.message);
-    setMessage({
-      type: "error",
-      text: `❌ Lỗi: ${error.message || "Không thể kết nối server!"}`,
-    });
-    return null;
-  }
-};
 
 export default function Student() {
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
   const [students, setStudents] = useState<Student[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [message, setMessage] = useState<{
     type: "error" | "success";
     text: string;
   } | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{
+    username?: string;
+    phone?: string;
+  }>({});
   const navigate = useNavigate();
+  const studentsPerPage = 10;
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const studentsPerPage = 10;
+  // Debounced values for validation
+  const debouncedUsername = useDebounce(editingStudent?.username || "", 500);
+  const debouncedPhone = useDebounce(editingStudent?.phone || "", 500);
 
   useEffect(() => {
     if (message) {
@@ -133,75 +78,75 @@ export default function Student() {
   }, [message]);
 
   useEffect(() => {
-    console.log("🔍 Kiểm tra token:", localStorage.getItem("token"));
     setIsLoading(true);
-    getCurrentUser(setMessage).then((user) => {
-      setIsLoading(false);
-      if (!user) {
-        navigate("/signin");
-        return;
-      }
-      setCurrentUser(user);
-    });
-  }, [navigate]);
 
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
-      navigate("/signin");
-      return;
-    }
-
-    const jwtToken = getJwtToken(token);
-    if (!jwtToken) {
-      setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
-      navigate("/signin");
-      return;
-    }
-
-    setIsLoading(true);
-    fetch(`${API_URL}/students`, {
-      headers: {
-        Authorization: `Bearer ${jwtToken}`,
-      },
-    })
-      .then((res) => {
+    // Fetch students
+    fetch(`${API_URL}/students`)
+      .then(async (res) => {
         if (!res.ok) {
-          if (res.status === 401) {
-            localStorage.removeItem("token");
-            setMessage({
-              type: "error",
-              text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
-            });
-            navigate("/signin");
-          }
-          throw new Error(`HTTP error! status: ${res.status}`);
+          const errorData = await res.text();
+          throw new Error(
+            `HTTP error! status: ${res.status}, message: ${
+              errorData || "Unknown error"
+            }`
+          );
         }
         return res.json();
       })
       .then((data) => {
         if (Array.isArray(data)) {
-          console.log("✅ Dữ liệu students:", data);
+          console.log("✅ Tải dữ liệu học sinh thành công");
           setStudents(data);
         } else if (data && Array.isArray(data.content)) {
+          console.log("✅ Tải dữ liệu học sinh thành công");
           setStudents(data.content);
         } else {
-          console.error("Unexpected API format:", data);
+          console.error("Unexpected API format for students");
           setStudents([]);
         }
       })
       .catch((err) => {
-        console.error("Error fetching students:", err);
+        console.error("❌ Lỗi khi tải học sinh:", err.message);
         setMessage({
           type: "error",
-          text: `❌ Lỗi: ${err.message || "Không thể tải dữ liệu!"}`,
+          text: `❌ Lỗi: ${err.message || "Không thể tải dữ liệu học sinh!"}`,
+        });
+      });
+
+    // Fetch classes
+    fetch(`${API_URL}/class`)
+      .then(async (res) => {
+        if (!res.ok) {
+          const errorData = await res.text();
+          throw new Error(
+            `HTTP error! status: ${res.status}, message: ${
+              errorData || "Unknown error"
+            }`
+          );
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data)) {
+          console.log("✅ Tải dữ liệu lớp học thành công");
+          setClasses(data);
+        } else if (data && Array.isArray(data.content)) {
+          console.log("✅ Tải dữ liệu lớp học thành công");
+          setClasses(data.content);
+        } else {
+          console.error("Unexpected API format for classes");
+          setClasses([]);
+        }
+      })
+      .catch((err) => {
+        console.error("❌ Lỗi khi tải lớp học:", err.message);
+        setMessage({
+          type: "error",
+          text: `❌ Lỗi: ${err.message || "Không thể tải dữ liệu lớp học!"}`,
         });
       })
       .finally(() => setIsLoading(false));
-  }, [API_URL, currentUser, navigate]);
+  }, []);
 
   useEffect(() => {
     if (editingStudent && inputRef.current) {
@@ -209,7 +154,41 @@ export default function Student() {
     }
   }, [editingStudent]);
 
-  // Tính toán phân trang
+  // Validate uniqueness locally
+  useEffect(() => {
+    if (!editingStudent) return;
+
+    const usernameError = !debouncedUsername
+      ? "Username không được để trống."
+      : editingStudent.id
+      ? students.find(
+          (s) => s.id !== editingStudent.id && s.username === debouncedUsername
+        )
+        ? "Username đã tồn tại."
+        : undefined
+      : students.find((s) => s.username === debouncedUsername)
+      ? "Username đã tồn tại."
+      : undefined;
+
+    const phoneError = !debouncedPhone
+      ? "Số điện thoại không được để trống."
+      : editingStudent.id
+      ? students.find(
+          (s) => s.id !== editingStudent.id && s.phone === debouncedPhone
+        )
+        ? "Số điện thoại đã tồn tại."
+        : undefined
+      : students.find((s) => s.phone === debouncedPhone)
+      ? "Số điện thoại đã tồn tại."
+      : undefined;
+
+    setValidationErrors({
+      username: usernameError,
+      phone: phoneError,
+    });
+  }, [debouncedUsername, debouncedPhone, editingStudent, students]);
+
+  // Pagination
   const indexOfLastStudent = currentPage * studentsPerPage;
   const indexOfFirstStudent = indexOfLastStudent - studentsPerPage;
   const currentStudents = students.slice(
@@ -222,7 +201,7 @@ export default function Student() {
     setCurrentPage(page);
   };
 
-  // Xóa Student
+  // Delete Student
   const MySwal = withReactContent(Swal);
   const handleDelete = async (id: number) => {
     const result = await MySwal.fire({
@@ -236,163 +215,115 @@ export default function Student() {
 
     if (result.isConfirmed) {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
-          navigate("/signin");
-          return;
-        }
-
-        const jwtToken = getJwtToken(token);
-        if (!jwtToken) {
-          setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
-          navigate("/signin");
-          return;
-        }
-
-        setIsSubmitting(true);
+        setIsLoading(true);
         const res = await fetch(`${API_URL}/students/${id}`, {
           method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
         });
 
         if (!res.ok) {
-          const errorData = await res.json();
+          const errorData = await res.text();
           console.error("❌ Lỗi từ server:", errorData);
-          if (res.status === 401) {
-            localStorage.removeItem("token");
-            setMessage({
-              type: "error",
-              text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
-            });
-            navigate("/signin");
-          }
           setMessage({
             type: "error",
-            text: `❌ Lỗi: ${errorData.message || "Xóa thất bại"}`,
+            text: `❌ Lỗi: ${errorData || "Xóa thất bại"}`,
           });
           return;
         }
 
         setStudents((prev) => prev.filter((s) => s.id !== id));
-        MySwal.fire("Đã xóa!", "Học sinh đã được xóa thành công.", "success");
+        console.log("✅ Xóa học sinh thành công");
+        MySwal.fire("Thành công", "Xóa học sinh thành công", "success");
       } catch (err) {
         const error = err as Error;
         console.error("❌ Lỗi khi xóa:", error.message);
-        MySwal.fire("Lỗi", "Không thể xóa học sinh.", "error");
+        MySwal.fire("Lỗi", `Không thể xóa học sinh: ${error.message}`, "error");
       } finally {
-        setIsSubmitting(false);
+        setIsLoading(false);
       }
     }
   };
 
-  // Mở dialog chỉnh sửa
+  // Open edit dialog
   const handleEdit = (student: Student) => {
-    setEditingStudent(student);
-    setMessage(null);
+    setEditingStudent({
+      ...student,
+      classEntity: { ...student.classEntity },
+    });
+    setValidationErrors({});
   };
 
-  // Chuẩn hóa chuỗi để kiểm tra trùng lặp
-  const normalizeString = (str: string): string => {
-    return str.trim().toLowerCase().replace(/\s+/g, " ");
-  };
-
-  // Kiểm tra trùng lặp username
-  const isDuplicateUsername = (username: string, currentId?: number) => {
-    const normalizedInput = normalizeString(username);
-    if (!normalizedInput) {
-      return "Username không được để trống.";
-    }
-    const isDuplicate = students.some(
-      (s) =>
-        normalizeString(s.username) === normalizedInput && s.id !== currentId
-    );
-    return isDuplicate
-      ? "Username này đã tồn tại. Vui lòng chọn username khác."
-      : null;
-  };
-
-  // Lưu chỉnh sửa
+  // Save edit
   const handleSaveEdit = async () => {
-    if (!editingStudent || !currentUser) return;
+    if (!editingStudent) return;
 
-    // Validate required fields
+    // Basic validation
     if (!editingStudent.fullName.trim()) {
-      setMessage({ type: "error", text: "⚠️ Họ tên không được để trống!" });
+      setMessage({ type: "error", text: "❌ Họ tên không được để trống!" });
       return;
     }
     if (!editingStudent.username.trim()) {
-      setMessage({ type: "error", text: "⚠️ Username không được để trống!" });
+      setMessage({ type: "error", text: "❌ Username không được để trống!" });
+      return;
+    }
+    if (!editingStudent.defaultPassword.trim()) {
+      setMessage({ type: "error", text: "❌ Mật khẩu không được để trống!" });
       return;
     }
     if (!editingStudent.phone.trim()) {
-      setMessage({ type: "error", text: "⚠️ Điện thoại không được để trống!" });
+      setMessage({
+        type: "error",
+        text: "❌ Số điện thoại không được để trống!",
+      });
       return;
     }
-    if (!editingStudent.birthdate) {
-      setMessage({ type: "error", text: "⚠️ Ngày sinh không được để trống!" });
+    if (!editingStudent.classEntity.id) {
+      setMessage({ type: "error", text: "❌ Vui lòng chọn lớp học!" });
       return;
     }
 
-    const duplicateMessage = isDuplicateUsername(
-      editingStudent.username,
-      editingStudent.id
-    );
-    if (duplicateMessage) {
-      setMessage({ type: "error", text: duplicateMessage });
+    // Check validation errors
+    if (Object.values(validationErrors).some((error) => error)) {
+      setMessage({
+        type: "error",
+        text: "❌ Vui lòng sửa các lỗi trong biểu mẫu!",
+      });
       return;
     }
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
-        navigate("/signin");
-        return;
-      }
-
-      const jwtToken = getJwtToken(token);
-      if (!jwtToken) {
-        setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
-        navigate("/signin");
-        return;
-      }
-
+      setIsLoading(true);
       const payload = {
         fullName: editingStudent.fullName.trim(),
         username: editingStudent.username.trim(),
+        defaultPassword: editingStudent.defaultPassword.trim(),
         phone: editingStudent.phone.trim(),
-        birthdate: editingStudent.birthdate,
-        hobbies: editingStudent.hobbies.trim(),
+        birthdate: editingStudent.birthdate || null,
+        hobbies: editingStudent.hobbies.trim() || null,
+        classId: editingStudent.classEntity.id,
       };
-      console.log("📤 Gửi payload:", payload);
-
-      setIsSubmitting(true);
       const res = await fetch(`${API_URL}/students/${editingStudent.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${jwtToken}`,
         },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        console.error("❌ Lỗi từ server:", errorData);
-        if (res.status === 401) {
-          localStorage.removeItem("token");
-          setMessage({
-            type: "error",
-            text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
-          });
-          navigate("/signin");
+        let errorData;
+        try {
+          errorData = await res.json();
+        } catch (jsonError) {
+          errorData = await res.text();
         }
+        console.error("❌ Lỗi từ server:", errorData);
         setMessage({
           type: "error",
-          text: `❌ Lỗi: ${errorData.message || "Cập nhật thất bại"}`,
+          text: `❌ Lỗi: ${
+            typeof errorData === "object" && errorData.message
+              ? errorData.message
+              : errorData || "Cập nhật thất bại"
+          }`,
         });
         return;
       }
@@ -402,20 +333,27 @@ export default function Student() {
         prev.map((s) => (s.id === updatedStudent.id ? updatedStudent : s))
       );
       setEditingStudent(null);
+      setValidationErrors({});
+      console.log("✅ Cập nhật học sinh thành công");
       MySwal.fire("Thành công", "Cập nhật học sinh thành công", "success");
     } catch (err) {
       const error = err as Error;
       console.error("❌ Lỗi khi gửi request:", error.message);
-      MySwal.fire("Lỗi", "Không thể cập nhật học sinh", "error");
+      setMessage({
+        type: "error",
+        text: `❌ Lỗi: ${error.message || "Không thể cập nhật học sinh"}`,
+      });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
+  // Format date
   function formatDate(dateStr: string): string {
     if (!dateStr) return "";
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
+
     return d.toLocaleDateString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
@@ -423,39 +361,23 @@ export default function Student() {
     });
   }
 
-  if (!currentUser) {
-    return (
-      <div className="text-center text-red-600">
-        Vui lòng đăng nhập để sử dụng tính năng này!
-        <button
-          onClick={() => navigate("/signin")}
-          className="ml-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          Đăng nhập
-        </button>
-      </div>
-    );
-  }
-
   return (
     <>
       <PageMeta
-        title="Danh sách học sinh"
+        title="Danh sách Học sinh | TailAdmin - Next.js Admin Dashboard Template"
         description="Quản lý học sinh trong hệ thống"
       />
-      <PageBreadcrumb pageTitle="Students" />
+      <PageBreadcrumb pageTitle="Danh sách Học sinh" />
       <div className="space-y-6">
         <ComponentCard title="Danh sách Học sinh">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">
-              Chào, {currentUser.username || currentUser.email}
-            </h2>
+            <h2 className="text-lg font-semibold">Danh sách Học sinh</h2>
             <Button
               variant="primary"
-              onClick={() => navigate("/add-student")}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              onClick={() => navigate("/Add-Students")}
+              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
             >
-              <Plus className="mr-2 h-4 w-4" /> Thêm Học Sinh
+              <Plus className="mr-2 h-4 w-4" /> Thêm Học sinh
             </Button>
           </div>
           {message && (
@@ -477,7 +399,10 @@ export default function Student() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ID
+                      STT
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Mã HS
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Họ tên
@@ -486,54 +411,53 @@ export default function Student() {
                       Username
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Lớp
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Điện thoại
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Ngày sinh
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sở thích
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Hành động
                     </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="bg-white divide-y divide-gray-200">
                   {currentStudents.length > 0 ? (
-                    currentStudents.map((s) => (
-                      <tr key={s.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">{s.id}</td>
+                    currentStudents.map((student, index) => (
+                      <tr key={student.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {s.fullName}
+                          {indexOfFirstStudent + index + 1}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {s.username}
+                          {student.code}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {s.phone}
+                          {student.fullName}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {formatDate(s.birthdate)}
+                          {student.username}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {s.hobbies}
+                          {student.classEntity.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {student.phone}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => handleEdit(s)}
+                              onClick={() => handleEdit(student)}
                               className="flex items-center px-3 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600"
-                              disabled={isSubmitting}
+                              disabled={isLoading}
                             >
-                              <Edit className="mr-1 h-4 w-4" /> Sửa
+                              <Edit className="mr-1 h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => handleDelete(s.id)}
+                              onClick={() => handleDelete(student.id)}
                               className="flex items-center px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600"
-                              disabled={isSubmitting}
+                              disabled={isLoading}
                             >
-                              <Trash2 className="mr-1 h-4 w-4" /> Xóa
+                              <Trash2 className="mr-1 h-4 w-4" />
                             </button>
                           </div>
                         </td>
@@ -548,7 +472,6 @@ export default function Student() {
                   )}
                 </tbody>
               </table>
-
               <div className="flex justify-center mt-4 space-x-2">
                 {Array.from({ length: totalPages }, (_, i) => (
                   <button
@@ -559,7 +482,7 @@ export default function Student() {
                         ? "bg-blue-500 text-white"
                         : "bg-white text-blue-500"
                     }`}
-                    disabled={isLoading || isSubmitting}
+                    disabled={isLoading}
                   >
                     {i + 1}
                   </button>
@@ -572,20 +495,24 @@ export default function Student() {
 
       <Dialog
         open={!!editingStudent}
-        onOpenChange={() => {
-          setEditingStudent(null);
-          setMessage(null);
-        }}
+        onOpenChange={() => setEditingStudent(null)}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Chỉnh sửa Học Sinh</DialogTitle>
-            <DialogDescription>
-              Chỉnh sửa thông tin học sinh. Vui lòng đảm bảo username là duy
-              nhất.
-            </DialogDescription>
+            <DialogTitle>Chỉnh sửa Học sinh</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Mã HS
+              </label>
+              <input
+                type="text"
+                value={editingStudent?.code || ""}
+                className="w-full border rounded px-3 py-2 bg-gray-100"
+                disabled
+              />
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Họ tên
@@ -601,6 +528,8 @@ export default function Student() {
                   })
                 }
                 className="w-full border rounded px-3 py-2"
+                placeholder="Nhập họ tên..."
+                disabled={isLoading}
                 required
               />
             </div>
@@ -618,7 +547,51 @@ export default function Student() {
                   })
                 }
                 className="w-full border rounded px-3 py-2"
+                placeholder="Nhập username..."
+                disabled={isLoading}
                 required
+              />
+              {validationErrors.username && (
+                <p className="text-red-500 text-sm mt-1">
+                  {validationErrors.username}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Mật khẩu
+              </label>
+              <input
+                type="password"
+                value={editingStudent?.defaultPassword || ""}
+                onChange={(e) =>
+                  setEditingStudent({
+                    ...editingStudent!,
+                    defaultPassword: e.target.value,
+                  })
+                }
+                className="w-full border rounded px-3 py-2"
+                placeholder="Nhập mật khẩu..."
+                disabled={isLoading}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <input
+                type="email"
+                value={editingStudent?.email || ""}
+                onChange={(e) =>
+                  setEditingStudent({
+                    ...editingStudent!,
+                    email: e.target.value || null,
+                  })
+                }
+                className="w-full border rounded px-3 py-2"
+                placeholder="Nhập email (không bắt buộc)..."
+                disabled={isLoading}
               />
             </div>
             <div>
@@ -626,7 +599,7 @@ export default function Student() {
                 Điện thoại
               </label>
               <input
-                type="tel"
+                type="text"
                 value={editingStudent?.phone || ""}
                 onChange={(e) =>
                   setEditingStudent({
@@ -635,8 +608,15 @@ export default function Student() {
                   })
                 }
                 className="w-full border rounded px-3 py-2"
+                placeholder="Nhập số điện thoại..."
+                disabled={isLoading}
                 required
               />
+              {validationErrors.phone && (
+                <p className="text-red-500 text-sm mt-1">
+                  {validationErrors.phone}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
@@ -652,7 +632,7 @@ export default function Student() {
                   })
                 }
                 className="w-full border rounded px-3 py-2"
-                required
+                disabled={isLoading}
               />
             </div>
             <div>
@@ -669,37 +649,87 @@ export default function Student() {
                   })
                 }
                 className="w-full border rounded px-3 py-2"
+                placeholder="Nhập sở thích..."
+                disabled={isLoading}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Lớp học
+              </label>
+              <select
+                value={editingStudent?.classEntity.id || ""}
+                onChange={(e) =>
+                  setEditingStudent({
+                    ...editingStudent!,
+                    classEntity: {
+                      ...editingStudent!.classEntity,
+                      id: Number(e.target.value),
+                    },
+                  })
+                }
+                className="w-full border rounded px-3 py-2"
+                disabled={isLoading}
+                required
+              >
+                <option value="">— Chọn lớp —</option>
+                {classes.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Trạng thái
+              </label>
+              <select
+                value={editingStudent?.isActive ? "true" : "false"}
+                onChange={(e) =>
+                  setEditingStudent({
+                    ...editingStudent!,
+                    isActive: e.target.value === "true",
+                  })
+                }
+                className="w-full border rounded px-3 py-2"
+                disabled={isLoading}
+              >
+                <option value="true">Hoạt động</option>
+                <option value="false">Không hoạt động</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Ngày tạo
+              </label>
+              <input
+                type="text"
+                value={
+                  editingStudent ? formatDate(editingStudent.createdAt) : ""
+                }
+                className="w-full border rounded px-3 py-2 bg-gray-100"
+                disabled
               />
             </div>
           </div>
-          {message && (
-            <div
-              className={`p-2 rounded-md border ${
-                message.type === "error"
-                  ? "text-red-700 bg-red-100 border-red-300"
-                  : "text-green-700 bg-green-100 border-green-300"
-              }`}
-            >
-              {message.text}
-            </div>
-          )}
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => {
-                setEditingStudent(null);
-                setMessage(null);
-              }}
-              disabled={isSubmitting}
+              onClick={() => setEditingStudent(null)}
+              disabled={isLoading}
             >
               Hủy
             </Button>
             <Button
               variant="primary"
               onClick={handleSaveEdit}
-              disabled={isSubmitting}
+              disabled={
+                isLoading ||
+                Object.values(validationErrors).some((error) => error)
+              }
             >
-              {isSubmitting ? "Đang xử lý..." : "Lưu"}
+              Lưu
             </Button>
           </DialogFooter>
         </DialogContent>
