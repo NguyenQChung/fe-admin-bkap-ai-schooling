@@ -37,7 +37,6 @@ export default function ClassPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const classesPerPage = 10;
   const [editingClass, setEditingClass] = useState<Class | null>(null);
-  const [schoolId, setSchoolId] = useState<number | "">("");
   const [schools, setSchools] = useState<School[]>([]);
 
   useEffect(() => {
@@ -217,7 +216,7 @@ export default function ClassPage() {
               onChange={(e) =>
                 setEditingClass({
                   ...editingClass!,
-                  schoolId: e.target.value ? Number(e.target.value) : 0, 
+                  schoolId: e.target.value ? Number(e.target.value) : 0,
                 })
               }
               className="mt-1 block w-full border rounded-md px-3 py-2"
