@@ -2,8 +2,26 @@ import { useEffect, useState } from "react";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { Link, useNavigate } from "react-router";
+import axios from "axios";
+
 
 export default function UserDropdown() {
+  interface ProfileDTO {
+    userId: number;
+    username?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+    objectType?: string;
+    fullName?: string;
+    code?: string;
+    className?: string;
+    homeroom?: string;
+    hobbies?: string[];
+  }
+
+  const [profile, setProfile] = useState<ProfileDTO | null>(null);
+  const API_URL = import.meta.env.VITE_API_URL || "";
   const [isOpen, setIsOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -28,6 +46,23 @@ export default function UserDropdown() {
     navigate("/signin"); // chuyển về trang login
   };
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get<ProfileDTO>(`${API_URL}/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setProfile(res.data);
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  if (!profile) return <div>Loading...</div>;
+
   return (
     <div className="relative">
       {token ? (
@@ -39,7 +74,7 @@ export default function UserDropdown() {
           <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
             <img src="/images/user/owner.jpg" alt="User" />
           </span>
-          <span className="block mr-1 font-medium text-theme-sm">admin</span>
+          <span className="block mr-1 font-medium text-theme-sm">{profile.fullName || profile.username}</span>
           <svg
             className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
               }`}
@@ -76,10 +111,10 @@ export default function UserDropdown() {
       >
         <div>
           <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
-            Musharof Chowdhury
+            {profile.fullName || profile.username}
           </span>
           <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-            randomuser@pimjo.com
+            {profile.email}
           </span>
         </div>
 

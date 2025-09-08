@@ -1,10 +1,14 @@
+import { useEffect, useState } from "react";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import UserMetaCard from "../components/UserProfile/UserMetaCard";
 import UserInfoCard from "../components/UserProfile/UserInfoCard";
-import UserAddressCard from "../components/UserProfile/UserAddressCard";
+
 import PageMeta from "../components/common/PageMeta";
 
+import axios from "axios";
+
 export default function UserProfiles() {
+  
   return (
     <>
       <PageMeta
@@ -19,7 +23,6 @@ export default function UserProfiles() {
         <div className="space-y-6">
           <UserMetaCard />
           <UserInfoCard />
-          <UserAddressCard />
         </div>
       </div>
     </>

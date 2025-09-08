@@ -3,6 +3,8 @@ import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 export default function UserInfoCard() {
   const { isOpen, openModal, closeModal } = useModal();
@@ -11,6 +13,40 @@ export default function UserInfoCard() {
     console.log("Saving changes...");
     closeModal();
   };
+
+  interface ProfileDTO {
+    userId: number;
+    username?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+    objectType?: string;
+    fullName?: string;
+    code?: string;
+    className?: string;
+    homeroom?: string;
+    hobbies?: string[];
+  }
+
+  const [profile, setProfile] = useState<ProfileDTO | null>(null);
+  const API_URL = import.meta.env.VITE_API_URL || "";
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get<ProfileDTO>(`${API_URL}/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setProfile(res.data);
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  if (!profile) return <div>Loading...</div>;
   return (
     <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -22,19 +58,19 @@ export default function UserInfoCard() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-7 2xl:gap-x-32">
             <div>
               <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                First Name
+                Name
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                Musharof 123123
+                {profile.fullName || profile.username}
               </p>
             </div>
 
             <div>
               <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                Last Name
+                ID Teacher
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                Chowdhury
+                {profile.code}
               </p>
             </div>
 
@@ -43,7 +79,7 @@ export default function UserInfoCard() {
                 Email address
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                randomuser@pimjo.com
+                {profile.email}
               </p>
             </div>
 
@@ -52,7 +88,7 @@ export default function UserInfoCard() {
                 Phone
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                +09 363 398 46
+                {profile.phone}
               </p>
             </div>
 
@@ -61,7 +97,7 @@ export default function UserInfoCard() {
                 Bio
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                Team Manager
+                {profile.objectType}
               </p>
             </div>
           </div>
