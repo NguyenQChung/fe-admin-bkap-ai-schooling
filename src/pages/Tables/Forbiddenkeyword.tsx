@@ -4,7 +4,6 @@ import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
 import PageMeta from "../../components/common/PageMeta";
 import { Edit, Trash2, Plus } from "lucide-react";
-import axios from "axios";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import {
@@ -64,7 +63,7 @@ const getCurrentUser = async (
 
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || ""}/auth/me`,
+      `${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/auth/me`,
       {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
@@ -93,7 +92,7 @@ const getCurrentUser = async (
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const userData = await response.json();
-    console.log("✅ User lấy được:", userData);
+    console.log("✅ Lấy thông tin user thành công");
     return {
       id: userData.id,
       username: userData.username || userData.email,
@@ -111,7 +110,7 @@ const getCurrentUser = async (
 };
 
 export default function ForbiddenKeyword() {
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
   const [forbiddenKeywords, setForbiddenKeywords] = useState<
     ForbiddenKeyword[]
   >([]);
@@ -130,7 +129,13 @@ export default function ForbiddenKeyword() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    console.log("🔍 Kiểm tra token:", localStorage.getItem("token"));
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  useEffect(() => {
     setIsLoading(true);
     getCurrentUser(setMessage).then((user) => {
       setIsLoading(false);
@@ -139,66 +144,56 @@ export default function ForbiddenKeyword() {
         return;
       }
       setCurrentUser(user);
+
+      const token = localStorage.getItem("token");
+      const jwtToken = getJwtToken(token);
+      if (!jwtToken) {
+        setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
+        navigate("/signin");
+        return;
+      }
+
+      fetch(`${API_URL}/forbidden-keywords`, {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+        },
+      })
+        .then((res) => {
+          if (!res.ok) {
+            if (res.status === 401) {
+              localStorage.removeItem("token");
+              setMessage({
+                type: "error",
+                text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
+              });
+              navigate("/signin");
+            }
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then((data) => {
+          if (Array.isArray(data)) {
+            console.log("✅ Tải dữ liệu forbidden-keywords thành công");
+            setForbiddenKeywords(data);
+          } else if (data && Array.isArray(data.content)) {
+            console.log("✅ Tải dữ liệu forbidden-keywords thành công");
+            setForbiddenKeywords(data.content);
+          } else {
+            console.error("Unexpected API format:", data);
+            setForbiddenKeywords([]);
+          }
+        })
+        .catch((err) => {
+          console.error("Error fetching forbidden keywords:", err);
+          setMessage({
+            type: "error",
+            text: `❌ Lỗi: ${err.message || "Không thể tải dữ liệu!"}`,
+          });
+        })
+        .finally(() => setIsLoading(false));
     });
   }, [navigate]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
-      navigate("/signin");
-      return;
-    }
-
-    const jwtToken = getJwtToken(token);
-    if (!jwtToken) {
-      setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
-      navigate("/signin");
-      return;
-    }
-
-    setIsLoading(true);
-    fetch(`${API_URL}/forbidden-keywords`, {
-      headers: {
-        Authorization: `Bearer ${jwtToken}`,
-      },
-    })
-      .then((res) => {
-        if (!res.ok) {
-          if (res.status === 401) {
-            localStorage.removeItem("token");
-            setMessage({
-              type: "error",
-              text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
-            });
-            navigate("/signin");
-          }
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-          console.log("✅ Dữ liệu forbidden-keywords:", data);
-          setForbiddenKeywords(data);
-        } else if (data && Array.isArray(data.content)) {
-          setForbiddenKeywords(data.content);
-        } else {
-          console.error("Unexpected API format:", data);
-          setForbiddenKeywords([]);
-        }
-      })
-      .catch((err) => {
-        console.error("Error fetching forbidden keywords:", err);
-        setMessage({
-          type: "error",
-          text: `❌ Lỗi: ${err.message || "Không thể tải dữ liệu!"}`,
-        });
-      })
-      .finally(() => setIsLoading(false));
-  }, [API_URL, currentUser, navigate]);
 
   useEffect(() => {
     if (editingForbiddenKeyword && inputRef.current) {
@@ -206,7 +201,7 @@ export default function ForbiddenKeyword() {
     }
   }, [editingForbiddenKeyword]);
 
-  // Tính toán phân trang
+  // Pagination
   const indexOfLastKeyword = currentPage * forbiddenKeywordsPerPage;
   const indexOfFirstKeyword = indexOfLastKeyword - forbiddenKeywordsPerPage;
   const currentForbiddenKeywords = forbiddenKeywords.slice(
@@ -221,15 +216,15 @@ export default function ForbiddenKeyword() {
     setCurrentPage(page);
   };
 
-  // Xóa ForbiddenKeyword
+  // Delete ForbiddenKeyword
   const MySwal = withReactContent(Swal);
   const handleDelete = async (id: number) => {
     const result = await MySwal.fire({
-      title: "Bạn có chắc muốn xoá?",
+      title: "Bạn có chắc muốn xóa?",
       text: "Hành động này không thể hoàn tác!",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Xoá",
+      confirmButtonText: "Xóa",
       cancelButtonText: "Hủy",
     });
 
@@ -250,32 +245,59 @@ export default function ForbiddenKeyword() {
         }
 
         setIsLoading(true);
-        await axios.delete(`${API_URL}/forbidden-keywords/${id}`, {
+        const res = await fetch(`${API_URL}/forbidden-keywords/${id}`, {
+          method: "DELETE",
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
         });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.error("❌ Lỗi từ server:", errorData);
+          if (res.status === 401) {
+            localStorage.removeItem("token");
+            setMessage({
+              type: "error",
+              text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
+            });
+            navigate("/signin");
+          }
+          setMessage({
+            type: "error",
+            text: `❌ Lỗi: ${errorData.message || "Xóa thất bại"}`,
+          });
+          return;
+        }
+
         setForbiddenKeywords((prev) => prev.filter((r) => r.id !== id));
+        console.log("✅ Xóa forbidden keyword thành công");
         MySwal.fire(
-          "Đã xoá!",
-          "Forbidden keyword đã được xoá thành công.",
+          "Thành công",
+          "Xóa forbidden keyword thành công",
           "success"
         );
-      } catch (err: any) {
-        MySwal.fire("Thất bại", "Không thể xoá forbidden keyword.", "error");
+      } catch (err) {
+        const error = err as Error;
+        console.error("❌ Lỗi khi xóa:", error.message);
+        MySwal.fire(
+          "Lỗi",
+          `Không thể xóa forbidden keyword: ${error.message}`,
+          "error"
+        );
       } finally {
         setIsLoading(false);
       }
     }
   };
 
-  // Mở modal edit
+  // Open edit dialog
   const handleEdit = (forbiddenKeyword: ForbiddenKeyword) => {
     setEditingForbiddenKeyword(forbiddenKeyword);
     setDuplicateWarning(null);
   };
 
-  // Kiểm tra trùng lặp keyword
+  // Check duplicate keyword
   const checkDuplicateKeyword = (keyword: string, currentId?: number) => {
     const normalizedInput = keyword.trim().toLowerCase().replace(/\s+/g, " ");
     if (!normalizedInput) {
@@ -291,7 +313,7 @@ export default function ForbiddenKeyword() {
       : null;
   };
 
-  // Lưu thay đổi
+  // Save edit
   const handleSaveEdit = async () => {
     if (!editingForbiddenKeyword || !currentUser) return;
 
@@ -319,33 +341,60 @@ export default function ForbiddenKeyword() {
         return;
       }
 
-      const payload = {
-        keyword: editingForbiddenKeyword.keyword,
-      };
-
       setIsLoading(true);
-      const res = await axios.put(
+      const payload = {
+        keyword: editingForbiddenKeyword.keyword.trim(),
+      };
+      const res = await fetch(
         `${API_URL}/forbidden-keywords/${editingForbiddenKeyword.id}`,
-        payload,
         {
+          method: "PUT",
           headers: {
+            "Content-Type": "application/json",
             Authorization: `Bearer ${jwtToken}`,
           },
+          body: JSON.stringify(payload),
         }
       );
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("❌ Lỗi từ server:", errorData);
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          setMessage({
+            type: "error",
+            text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
+          });
+          navigate("/signin");
+        }
+        setMessage({
+          type: "error",
+          text: `❌ Lỗi: ${errorData.message || "Cập nhật thất bại"}`,
+        });
+        return;
+      }
+
+      const updatedKeyword = await res.json();
       setForbiddenKeywords((prev) =>
-        prev.map((r) => (r.id === editingForbiddenKeyword.id ? res.data : r))
+        prev.map((r) => (r.id === updatedKeyword.id ? updatedKeyword : r))
       );
       setEditingForbiddenKeyword(null);
       setDuplicateWarning(null);
+      console.log("✅ Cập nhật forbidden keyword thành công");
       MySwal.fire(
         "Thành công",
         "Cập nhật forbidden keyword thành công",
         "success"
       );
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || "Không thể cập nhật";
-      MySwal.fire("Lỗi", errorMessage, "error");
+    } catch (err) {
+      const error = err as Error;
+      console.error("❌ Lỗi khi gửi request:", error.message);
+      MySwal.fire(
+        "Lỗi",
+        `Không thể cập nhật forbidden keyword: ${error.message}`,
+        "error"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -368,12 +417,12 @@ export default function ForbiddenKeyword() {
   return (
     <>
       <PageMeta
-        title="Forbidden Keywords Dashboard | TailAdmin - Next.js Admin Dashboard Template"
-        description="This is Forbidden Keywords Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="Danh sách Từ khóa Cấm | TailAdmin - Next.js Admin Dashboard Template"
+        description="Trang danh sách Từ khóa Cấm cho TailAdmin"
       />
-      <PageBreadcrumb pageTitle="Forbidden Keywords" />
+      <PageBreadcrumb pageTitle="Danh sách Từ khóa Cấm" />
       <div className="space-y-6">
-        <ComponentCard title="Danh sách Forbidden Keywords">
+        <ComponentCard title="Danh sách Từ khóa Cấm">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">
               Chào, {currentUser.username || currentUser.email}
@@ -383,7 +432,7 @@ export default function ForbiddenKeyword() {
               onClick={() => navigate("/add-forbidden-keyword")}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
             >
-              <Plus className="mr-2 h-4 w-4" /> Thêm Forbidden Keyword
+              <Plus className="mr-2 h-4 w-4" /> Thêm Từ khóa Cấm
             </Button>
           </div>
           {message && (
@@ -408,17 +457,17 @@ export default function ForbiddenKeyword() {
                       STT
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Keyword
+                      Từ khóa
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created By
+                      Người tạo
                     </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Hành động
                     </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="bg-white divide-y divide-gray-200">
                   {currentForbiddenKeywords.length > 0 ? (
                     currentForbiddenKeywords.map((keyword, index) => (
                       <tr key={keyword.id}>
@@ -435,21 +484,21 @@ export default function ForbiddenKeyword() {
                               "Unknown User"
                             : "Unknown User"}
                         </td>
-                        <td className="px-2 py-4 text-left">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex space-x-2">
                             <button
                               onClick={() => handleEdit(keyword)}
                               className="flex items-center px-3 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600"
                               disabled={isLoading}
                             >
-                              <Edit />
+                              <Edit className="mr-1 h-4 w-4" /> Sửa
                             </button>
                             <button
                               onClick={() => handleDelete(keyword.id)}
                               className="flex items-center px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600"
                               disabled={isLoading}
                             >
-                              <Trash2 />
+                              <Trash2 className="mr-1 h-4 w-4" /> Xóa
                             </button>
                           </div>
                         </td>
@@ -458,13 +507,12 @@ export default function ForbiddenKeyword() {
                   ) : (
                     <tr>
                       <td colSpan={4} className="text-center py-4">
-                        Không có forbidden keyword nào
+                        Không có từ khóa cấm nào
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
-
               <div className="flex justify-center mt-4 space-x-2">
                 {Array.from({ length: totalPages }, (_, i) => (
                   <button
@@ -495,16 +543,16 @@ export default function ForbiddenKeyword() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Chỉnh sửa Forbidden Keyword</DialogTitle>
+            <DialogTitle>Chỉnh sửa Từ khóa Cấm</DialogTitle>
             <DialogDescription>
-              Chỉnh sửa nội dung của forbidden keyword. Vui lòng đảm bảo từ khóa
-              là duy nhất.
+              Chỉnh sửa nội dung của từ khóa cấm. Vui lòng đảm bảo từ khóa là
+              duy nhất.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Keyword
+                Từ khóa
               </label>
               <input
                 ref={inputRef}
@@ -524,7 +572,9 @@ export default function ForbiddenKeyword() {
                   );
                 }}
                 className="w-full border rounded px-3 py-2"
+                placeholder="Nhập từ khóa cấm..."
                 disabled={isLoading}
+                required
               />
               {duplicateWarning && (
                 <p className="text-red-500 text-sm mt-1">{duplicateWarning}</p>

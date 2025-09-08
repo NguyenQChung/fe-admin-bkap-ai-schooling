@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
 import PageMeta from "../../components/common/PageMeta";
-import axios from "axios";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import Button from "../../components/ui/button/Button";
@@ -55,7 +54,7 @@ const getCurrentUser = async (
 
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || ""}/auth/me`,
+      `${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/auth/me`,
       {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
@@ -84,7 +83,7 @@ const getCurrentUser = async (
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const userData = await response.json();
-    console.log("✅ User lấy được:", userData);
+    console.log("✅ Lấy thông tin user thành công");
     return {
       id: userData.id,
       username: userData.username || userData.email,
@@ -102,7 +101,7 @@ const getCurrentUser = async (
 };
 
 export default function AddForbiddenKeyword() {
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
   const [keyword, setKeyword] = useState("");
   const [forbiddenKeywords, setForbiddenKeywords] = useState<
     ForbiddenKeyword[]
@@ -118,6 +117,13 @@ export default function AddForbiddenKeyword() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  useEffect(() => {
     setIsLoading(true);
     getCurrentUser(setMessage).then((user) => {
       if (!user) {
@@ -126,7 +132,6 @@ export default function AddForbiddenKeyword() {
       }
       setCurrentUser(user);
 
-      // Lấy danh sách forbiddenKeywords để kiểm tra trùng lặp
       const token = localStorage.getItem("token");
       const jwtToken = getJwtToken(token);
       if (!jwtToken) {
@@ -156,9 +161,10 @@ export default function AddForbiddenKeyword() {
         })
         .then((data) => {
           if (Array.isArray(data)) {
-            console.log("✅ Dữ liệu forbidden-keywords:", data);
+            console.log("✅ Tải dữ liệu forbidden-keywords thành công");
             setForbiddenKeywords(data);
           } else if (data && Array.isArray(data.content)) {
+            console.log("✅ Tải dữ liệu forbidden-keywords thành công");
             setForbiddenKeywords(data.content);
           } else {
             console.error("Unexpected API format:", data);
@@ -182,12 +188,12 @@ export default function AddForbiddenKeyword() {
     }
   }, []);
 
-  // Chuẩn hóa chuỗi để kiểm tra trùng lặp
+  // Normalize string for duplicate check
   const normalizeString = (str: string): string => {
     return str.trim().toLowerCase().replace(/\s+/g, " ");
   };
 
-  // Kiểm tra trùng lặp keyword
+  // Check duplicate keyword
   const checkDuplicateKeyword = (keyword: string) => {
     const normalizedInput = normalizeString(keyword);
     if (!normalizedInput) {
@@ -232,21 +238,48 @@ export default function AddForbiddenKeyword() {
     try {
       setIsLoading(true);
       const payload = {
-        keyword,
+        keyword: keyword.trim(),
       };
-      await axios.post(`${API_URL}/forbidden-keywords`, payload, {
+      const res = await fetch(`${API_URL}/forbidden-keywords`, {
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${jwtToken}`,
         },
+        body: JSON.stringify(payload),
       });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("❌ Lỗi từ server:", errorData);
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          setMessage({
+            type: "error",
+            text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
+          });
+          navigate("/signin");
+        }
+        setMessage({
+          type: "error",
+          text: `❌ Lỗi: ${errorData.message || "Thêm mới thất bại"}`,
+        });
+        return;
+      }
+
+      console.log("✅ Thêm forbidden keyword thành công");
       const MySwal = withReactContent(Swal);
-      MySwal.fire("Thành công", "Thêm forbidden keyword thành công", "success");
-      navigate("/Forbidden-Keyword");
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || "Không thể thêm forbidden keyword";
+      MySwal.fire("Thành công", "Thêm từ khóa cấm thành công", "success");
+      navigate("/forbidden-keywords");
+    } catch (err) {
+      const error = err as Error;
+      console.error("❌ Lỗi khi gửi request:", error.message);
       const MySwal = withReactContent(Swal);
-      MySwal.fire("Lỗi", errorMessage, "error");
+      MySwal.fire(
+        "Lỗi",
+        `Không thể thêm từ khóa cấm: ${error.message}`,
+        "error"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -269,12 +302,12 @@ export default function AddForbiddenKeyword() {
   return (
     <>
       <PageMeta
-        title="Thêm Forbidden Keyword | TailAdmin - Next.js Admin Dashboard Template"
-        description="Trang thêm mới Forbidden Keyword cho TailAdmin"
+        title="Thêm Từ khóa Cấm | TailAdmin - Next.js Admin Dashboard Template"
+        description="Trang thêm mới Từ khóa Cấm cho TailAdmin"
       />
-      <PageBreadcrumb pageTitle="Thêm Forbidden Keyword" />
+      <PageBreadcrumb pageTitle="Thêm Từ khóa Cấm" />
       <div className="space-y-6">
-        <ComponentCard title="Thêm Forbidden Keyword">
+        <ComponentCard title="Thêm Từ khóa Cấm">
           {message && (
             <div
               className={`p-2 rounded-md border ${
@@ -292,7 +325,7 @@ export default function AddForbiddenKeyword() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Keyword
+                  Từ khóa
                 </label>
                 <input
                   ref={inputRef}
@@ -304,6 +337,7 @@ export default function AddForbiddenKeyword() {
                     setDuplicateWarning(checkDuplicateKeyword(newKeyword));
                   }}
                   className="w-full border rounded px-3 py-2"
+                  placeholder="Nhập từ khóa cấm..."
                   required
                 />
                 {duplicateWarning && (
@@ -328,7 +362,7 @@ export default function AddForbiddenKeyword() {
               <div className="flex justify-end space-x-2">
                 <Button
                   variant="outline"
-                  onClick={() => navigate("/Forbidden-Keyword")}
+                  onClick={() => navigate("/forbidden-keywords")}
                   disabled={isLoading}
                 >
                   Hủy
@@ -348,4 +382,3 @@ export default function AddForbiddenKeyword() {
     </>
   );
 }
-
