@@ -76,7 +76,7 @@ const navItems: NavItem[] = [
     icon: <TableIcon />,
     subItems: [
       { name: "Students", path: "/students", pro: false },
-      { name: "New Student", path: "/new-student", pro: false },
+      { name: "Add Students", path: "/Add-Students", pro: false },
     ],
   },
   {
