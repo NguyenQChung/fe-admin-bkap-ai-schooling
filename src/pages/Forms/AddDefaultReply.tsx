@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
 import PageMeta from "../../components/common/PageMeta";
-import axios from "axios";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import Button from "../../components/ui/button/Button";
@@ -55,7 +54,7 @@ const getCurrentUser = async (
 
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || ""}/auth/me`,
+      `${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/auth/me`,
       {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
@@ -84,7 +83,7 @@ const getCurrentUser = async (
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const userData = await response.json();
-    console.log("✅ User lấy được:", userData);
+    console.log("✅ Lấy thông tin user thành công");
     return {
       id: userData.id,
       username: userData.username || userData.email,
@@ -102,7 +101,7 @@ const getCurrentUser = async (
 };
 
 export default function AddDefaultReply() {
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
   const [replyText, setReplyText] = useState("");
   const [defaultReplies, setDefaultReplies] = useState<DefaultReply[]>([]);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
@@ -116,6 +115,13 @@ export default function AddDefaultReply() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  useEffect(() => {
     setIsLoading(true);
     getCurrentUser(setMessage).then((user) => {
       if (!user) {
@@ -124,7 +130,6 @@ export default function AddDefaultReply() {
       }
       setCurrentUser(user);
 
-      // Lấy danh sách defaultReplies để kiểm tra trùng lặp
       const token = localStorage.getItem("token");
       const jwtToken = getJwtToken(token);
       if (!jwtToken) {
@@ -154,9 +159,10 @@ export default function AddDefaultReply() {
         })
         .then((data) => {
           if (Array.isArray(data)) {
-            console.log("✅ Dữ liệu default-replies:", data);
+            console.log("✅ Tải dữ liệu default-replies thành công");
             setDefaultReplies(data);
           } else if (data && Array.isArray(data.content)) {
+            console.log("✅ Tải dữ liệu default-replies thành công");
             setDefaultReplies(data.content);
           } else {
             console.error("Unexpected API format:", data);
@@ -230,22 +236,50 @@ export default function AddDefaultReply() {
     try {
       setIsLoading(true);
       const payload = {
-        replyText,
+        replyText: replyText.trim(),
         createdById: currentUser.id,
       };
-      await axios.post(`${API_URL}/default-replies`, payload, {
+      console.log("📤 Yêu cầu POST tới:", `${API_URL}/default-replies`);
+      console.log("📤 Payload:", JSON.stringify(payload, null, 2));
+      const res = await fetch(`${API_URL}/default-replies`, {
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${jwtToken}`,
         },
+        body: JSON.stringify(payload),
       });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("❌ Lỗi từ server:", errorData);
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          setMessage({
+            type: "error",
+            text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
+          });
+          navigate("/signin");
+        }
+        setMessage({
+          type: "error",
+          text: `❌ Lỗi: ${errorData.message || "Thêm mới thất bại"}`,
+        });
+        return;
+      }
+
       const MySwal = withReactContent(Swal);
       MySwal.fire("Thành công", "Thêm default reply thành công", "success");
       navigate("/DefaultReply");
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || "Không thể thêm default reply";
+    } catch (err) {
+      const error = err as Error;
+      console.error("❌ Lỗi khi gửi request:", error.message);
       const MySwal = withReactContent(Swal);
-      MySwal.fire("Lỗi", errorMessage, "error");
+      MySwal.fire(
+        "Lỗi",
+        `Không thể thêm default reply: ${error.message}`,
+        "error"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -291,7 +325,7 @@ export default function AddDefaultReply() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Reply Text
+                  Từ khóa
                 </label>
                 <input
                   ref={inputRef}
@@ -303,6 +337,7 @@ export default function AddDefaultReply() {
                     setDuplicateWarning(checkDuplicateReplyText(newReplyText));
                   }}
                   className="w-full border rounded px-3 py-2"
+                  placeholder="Nhập từ khóa..."
                   required
                 />
                 {duplicateWarning && (
@@ -339,6 +374,7 @@ export default function AddDefaultReply() {
                 >
                   Thêm
                 </button>
+                ;
               </div>
             </form>
           )}

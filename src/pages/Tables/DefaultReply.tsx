@@ -4,7 +4,6 @@ import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
 import PageMeta from "../../components/common/PageMeta";
 import { Edit, Trash2, Plus } from "lucide-react";
-import axios from "axios";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import {
@@ -64,7 +63,7 @@ const getCurrentUser = async (
 
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || ""}/auth/me`,
+      `${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/auth/me`,
       {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
@@ -93,7 +92,7 @@ const getCurrentUser = async (
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const userData = await response.json();
-    console.log("✅ User lấy được:", userData);
+    console.log("✅ Lấy thông tin user thành công");
     return {
       id: userData.id,
       username: userData.username || userData.email,
@@ -111,7 +110,7 @@ const getCurrentUser = async (
 };
 
 export default function DefaultReply() {
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
   const [defaultReplies, setDefaultReplies] = useState<DefaultReply[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -128,7 +127,13 @@ export default function DefaultReply() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    console.log("🔍 Kiểm tra token:", localStorage.getItem("token"));
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  useEffect(() => {
     setIsLoading(true);
     getCurrentUser(setMessage).then((user) => {
       setIsLoading(false);
@@ -137,66 +142,56 @@ export default function DefaultReply() {
         return;
       }
       setCurrentUser(user);
+
+      const token = localStorage.getItem("token");
+      const jwtToken = getJwtToken(token);
+      if (!jwtToken) {
+        setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
+        navigate("/signin");
+        return;
+      }
+
+      fetch(`${API_URL}/default-replies`, {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+        },
+      })
+        .then((res) => {
+          if (!res.ok) {
+            if (res.status === 401) {
+              localStorage.removeItem("token");
+              setMessage({
+                type: "error",
+                text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
+              });
+              navigate("/signin");
+            }
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then((data) => {
+          if (Array.isArray(data)) {
+            console.log("✅ Tải dữ liệu default-replies thành công");
+            setDefaultReplies(data);
+          } else if (data && Array.isArray(data.content)) {
+            console.log("✅ Tải dữ liệu default-replies thành công");
+            setDefaultReplies(data.content);
+          } else {
+            console.error("Unexpected API format:", data);
+            setDefaultReplies([]);
+          }
+        })
+        .catch((err) => {
+          console.error("Error fetching default replies:", err);
+          setMessage({
+            type: "error",
+            text: `❌ Lỗi: ${err.message || "Không thể tải dữ liệu!"}`,
+          });
+        })
+        .finally(() => setIsLoading(false));
     });
   }, [navigate]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
-      navigate("/signin");
-      return;
-    }
-
-    const jwtToken = getJwtToken(token);
-    if (!jwtToken) {
-      setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
-      navigate("/signin");
-      return;
-    }
-
-    setIsLoading(true);
-    fetch(`${API_URL}/default-replies`, {
-      headers: {
-        Authorization: `Bearer ${jwtToken}`,
-      },
-    })
-      .then((res) => {
-        if (!res.ok) {
-          if (res.status === 401) {
-            localStorage.removeItem("token");
-            setMessage({
-              type: "error",
-              text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
-            });
-            navigate("/signin");
-          }
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-          console.log("✅ Dữ liệu default-replies:", data);
-          setDefaultReplies(data);
-        } else if (data && Array.isArray(data.content)) {
-          setDefaultReplies(data.content);
-        } else {
-          console.error("Unexpected API format:", data);
-          setDefaultReplies([]);
-        }
-      })
-      .catch((err) => {
-        console.error("Error fetching default replies:", err);
-        setMessage({
-          type: "error",
-          text: `❌ Lỗi: ${err.message || "Không thể tải dữ liệu!"}`,
-        });
-      })
-      .finally(() => setIsLoading(false));
-  }, [API_URL, currentUser, navigate]);
 
   useEffect(() => {
     if (editingDefaultReply && inputRef.current) {
@@ -204,7 +199,7 @@ export default function DefaultReply() {
     }
   }, [editingDefaultReply]);
 
-  // Tính toán phân trang
+  // Pagination
   const indexOfLastDefaultReply = currentPage * defaultRepliesPerPage;
   const indexOfFirstDefaultReply =
     indexOfLastDefaultReply - defaultRepliesPerPage;
@@ -218,15 +213,15 @@ export default function DefaultReply() {
     setCurrentPage(page);
   };
 
-  // Xóa DefaultReply
+  // Delete DefaultReply
   const MySwal = withReactContent(Swal);
   const handleDelete = async (id: number) => {
     const result = await MySwal.fire({
-      title: "Bạn có chắc muốn xoá?",
+      title: "Bạn có chắc muốn xóa?",
       text: "Hành động này không thể hoàn tác!",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Xoá",
+      confirmButtonText: "Xóa",
       cancelButtonText: "Hủy",
     });
 
@@ -247,36 +242,62 @@ export default function DefaultReply() {
         }
 
         setIsLoading(true);
-        await axios.delete(`${API_URL}/default-replies/${id}`, {
+        const res = await fetch(`${API_URL}/default-replies/${id}`, {
+          method: "DELETE",
           headers: {
             Authorization: `Bearer ${jwtToken}`,
           },
         });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.error("❌ Lỗi từ server:", errorData);
+          if (res.status === 401) {
+            localStorage.removeItem("token");
+            setMessage({
+              type: "error",
+              text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
+            });
+            navigate("/signin");
+          }
+          setMessage({
+            type: "error",
+            text: `❌ Lỗi: ${errorData.message || "Xóa thất bại"}`,
+          });
+          return;
+        }
+
         setDefaultReplies((prev) => prev.filter((r) => r.id !== id));
+        MySwal.fire("Thành công", "Xóa default reply thành công", "success");
+      } catch (err) {
+        const error = err as Error;
+        console.error("❌ Lỗi khi xóa:", error.message);
         MySwal.fire(
-          "Đã xoá!",
-          "Default reply đã được xoá thành công.",
-          "success"
+          "Lỗi",
+          `Không thể xóa default reply: ${error.message}`,
+          "error"
         );
-      } catch (err: any) {
-        MySwal.fire("Thất bại", "Không thể xoá default reply.", "error");
       } finally {
         setIsLoading(false);
       }
     }
   };
 
-  // Mở modal edit
+  // Open edit dialog
   const handleEdit = (defaultReply: DefaultReply) => {
     setEditingDefaultReply(defaultReply);
-    setDuplicateWarning(null); // Reset cảnh báo trùng lặp khi mở form
+    setDuplicateWarning(null);
   };
 
-  // Kiểm tra trùng lặp replyText
+  // Check duplicate replyText
   const checkDuplicateReplyText = (replyText: string, currentId?: number) => {
+    const normalizedInput = replyText.trim().toLowerCase();
+    if (!normalizedInput) {
+      return "Từ khóa không được để trống.";
+    }
     const isDuplicate = defaultReplies.some(
       (reply) =>
-        reply.replyText.toLowerCase() === replyText.toLowerCase() &&
+        reply.replyText.trim().toLowerCase() === normalizedInput &&
         reply.id !== currentId
     );
     return isDuplicate
@@ -284,7 +305,7 @@ export default function DefaultReply() {
       : null;
   };
 
-  // Lưu thay đổi
+  // Save edit
   const handleSaveEdit = async () => {
     if (!editingDefaultReply || !currentUser) return;
 
@@ -312,30 +333,61 @@ export default function DefaultReply() {
         return;
       }
 
+      setIsLoading(true);
       const payload = {
-        replyText: editingDefaultReply.replyText,
+        replyText: editingDefaultReply.replyText.trim(),
         createdById: currentUser.id,
       };
-
-      setIsLoading(true);
-      const res = await axios.put(
+      console.log(
+        "📤 Yêu cầu PUT tới:",
+        `${API_URL}/default-replies/${editingDefaultReply.id}`
+      );
+      console.log("📤 Payload:", JSON.stringify(payload, null, 2));
+      const res = await fetch(
         `${API_URL}/default-replies/${editingDefaultReply.id}`,
-        payload,
         {
+          method: "PUT",
           headers: {
+            "Content-Type": "application/json",
             Authorization: `Bearer ${jwtToken}`,
           },
+          body: JSON.stringify(payload),
         }
       );
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("❌ Lỗi từ server:", errorData);
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          setMessage({
+            type: "error",
+            text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
+          });
+          navigate("/signin");
+        }
+        setMessage({
+          type: "error",
+          text: `❌ Lỗi: ${errorData.message || "Cập nhật thất bại"}`,
+        });
+        return;
+      }
+
+      const updatedReply = await res.json();
       setDefaultReplies((prev) =>
-        prev.map((r) => (r.id === editingDefaultReply.id ? res.data : r))
+        prev.map((r) => (r.id === updatedReply.id ? updatedReply : r))
       );
       setEditingDefaultReply(null);
       setDuplicateWarning(null);
       MySwal.fire("Thành công", "Cập nhật default reply thành công", "success");
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || "Không thể cập nhật";
-      MySwal.fire("Lỗi", errorMessage, "error");
+    } catch (err) {
+      const error = err as Error;
+      console.error("❌ Lỗi khi gửi request:", error.message);
+      MySwal.fire(
+        "Lỗi",
+        `Không thể cập nhật default reply: ${error.message}`,
+        "error"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -358,10 +410,10 @@ export default function DefaultReply() {
   return (
     <>
       <PageMeta
-        title="Default Replies Dashboard | TailAdmin - Next.js Admin Dashboard Template"
-        description="This is Default Replies Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="Danh sách Default Replies | TailAdmin - Next.js Admin Dashboard Template"
+        description="Trang danh sách Default Replies cho TailAdmin"
       />
-      <PageBreadcrumb pageTitle="Default Replies" />
+      <PageBreadcrumb pageTitle="Danh sách Default Replies" />
       <div className="space-y-6">
         <ComponentCard title="Danh sách Default Replies">
           <div className="flex justify-between items-center mb-4">
@@ -398,17 +450,17 @@ export default function DefaultReply() {
                       STT
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Reply Text
+                      Từ khóa
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created By
+                      Người tạo
                     </th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Hành động
                     </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="bg-white divide-y divide-gray-200">
                   {currentDefaultReplies.length > 0 ? (
                     currentDefaultReplies.map((reply, index) => (
                       <tr key={reply.id}>
@@ -425,21 +477,21 @@ export default function DefaultReply() {
                               "Unknown User"
                             : "Unknown User"}
                         </td>
-                        <td className="px-2 py-4 text-left">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex space-x-2">
                             <button
                               onClick={() => handleEdit(reply)}
                               className="flex items-center px-3 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600"
                               disabled={isLoading}
                             >
-                              <Edit />
+                              <Edit className="mr-1 h-4 w-4" /> Sửa
                             </button>
                             <button
                               onClick={() => handleDelete(reply.id)}
                               className="flex items-center px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600"
                               disabled={isLoading}
                             >
-                              <Trash2 />
+                              <Trash2 className="mr-1 h-4 w-4" /> Xóa
                             </button>
                           </div>
                         </td>
@@ -454,7 +506,6 @@ export default function DefaultReply() {
                   )}
                 </tbody>
               </table>
-
               <div className="flex justify-center mt-4 space-x-2">
                 {Array.from({ length: totalPages }, (_, i) => (
                   <button
@@ -494,7 +545,7 @@ export default function DefaultReply() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Reply Text
+                Từ khóa
               </label>
               <input
                 ref={inputRef}
@@ -514,7 +565,9 @@ export default function DefaultReply() {
                   );
                 }}
                 className="w-full border rounded px-3 py-2"
+                placeholder="Nhập từ khóa..."
                 disabled={isLoading}
+                required
               />
               {duplicateWarning && (
                 <p className="text-red-500 text-sm mt-1">{duplicateWarning}</p>

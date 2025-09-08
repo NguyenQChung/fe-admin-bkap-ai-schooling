@@ -5,6 +5,8 @@ import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
 import Button from "../ui/button/Button";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
 
 export default function SignInForm() {
   const [identifier, setIdentifier] = useState("");
@@ -14,6 +16,7 @@ export default function SignInForm() {
   const navigate = useNavigate();
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+  const MySwal = withReactContent(Swal);
 
   const handleLogin = async () => {
     try {
@@ -33,13 +36,14 @@ export default function SignInForm() {
       if (!token) {
         throw new Error("Không tìm thấy token trong phản hồi");
       }
-      console.log("✅ Đăng nhập thành công, token:", token);
+      console.log("✅ Đăng nhập thành công");
       localStorage.setItem("token", token);
+      MySwal.fire("Thành công", "Đăng nhập thành công!", "success");
       navigate("/");
     } catch (err) {
-      const error = err as Error; // Ép kiểu err thành Error
+      const error = err as Error;
       console.error("❌ Lỗi khi đăng nhập:", error.message);
-      alert("Đăng nhập thất bại: " + error.message);
+      MySwal.fire("Lỗi", `Đăng nhập thất bại: ${error.message}`, "error");
     }
   };
 
