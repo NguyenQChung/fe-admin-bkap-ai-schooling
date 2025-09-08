@@ -3,14 +3,50 @@ import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
+import axios from "axios";
+import { useEffect, useState } from "react";
+
 
 export default function UserMetaCard() {
+  interface ProfileDTO {
+    userId: number;
+    username?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+    objectType?: string;
+    fullName?: string;
+    code?: string;
+    className?: string;
+    homeroom?: string;
+    hobbies?: string[];
+  }
+
+  const [profile, setProfile] = useState<ProfileDTO | null>(null);
+  const API_URL = import.meta.env.VITE_API_URL || "";
   const { isOpen, openModal, closeModal } = useModal();
   const handleSave = () => {
     // Handle save logic here
     console.log("Saving changes...");
     closeModal();
   };
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get<ProfileDTO>(`${API_URL}/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setProfile(res.data);
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  if (!profile) return <div>Loading...</div>;
   return (
     <>
       <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
@@ -21,15 +57,15 @@ export default function UserMetaCard() {
             </div>
             <div className="order-3 xl:order-2">
               <h4 className="mb-2 text-lg font-semibold text-center text-gray-800 dark:text-white/90 xl:text-left">
-                Musharof Chowdhury
+                {profile.fullName || profile.username}
               </h4>
               <div className="flex flex-col items-center gap-1 text-center xl:flex-row xl:gap-3 xl:text-left">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Team Manager
+                  {profile.objectType}
                 </p>
                 <div className="hidden h-3.5 w-px bg-gray-300 dark:bg-gray-700 xl:block"></div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Arizona, United States
+                  {profile.code}
                 </p>
               </div>
             </div>
