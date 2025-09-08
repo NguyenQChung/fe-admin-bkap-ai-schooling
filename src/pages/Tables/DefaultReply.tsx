@@ -415,7 +415,7 @@ export default function DefaultReply() {
       />
       <PageBreadcrumb pageTitle="Danh sách Default Replies" />
       <div className="space-y-6">
-        <ComponentCard title="Danh sách Default Replies">
+        <ComponentCard title="">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">
               Chào, {currentUser.username || currentUser.email}
