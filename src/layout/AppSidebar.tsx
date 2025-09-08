@@ -47,6 +47,11 @@ const navItems: NavItem[] = [
     subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
   },
   {
+    name: "Import",
+    icon: <BoxCubeIcon />,
+    subItems: [{ name: "Import Excel", path: "/ImportExcel", pro: false }],
+  },
+  {
     name: "Schools",
     icon: <TableIcon />,
     subItems: [

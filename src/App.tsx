@@ -31,6 +31,7 @@ import AddClass from "./pages/Forms/AddClass";
 import AddDefaultReply from "./pages/Forms/AddDefaultReply";
 import AddForbiddenkeyword from "./pages/Forms/AddForbiddenkeyword";
 import AddStudents from "./pages/Forms/AddStudents";
+import ImportExcel from "./pages/Tables/ImportExcel";
 export default function App() {
   return (
     <>
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="/students" element={<Student />} />
             <Route path="/DefaultReply" element={<DefaultReply />} />
             <Route path="/Forbidden-Keyword" element={<ForbiddenKeyword />} />
+            <Route path="ImportExcel" element={<ImportExcel />} />
             {/* Ui Elements */}
             <Route path="/alerts" element={<Alerts />} />
             <Route path="/avatars" element={<Avatars />} />
