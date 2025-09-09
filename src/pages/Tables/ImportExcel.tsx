@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, Upload, Eye, EyeOff } from "lucide-react";
 import {
   Table,
@@ -36,31 +37,129 @@ interface ParsedError {
   value: string;
 }
 
+interface User {
+  id: number;
+  username: string | null;
+  email: string;
+}
+
+const getJwtToken = (token: string | null): string | null => {
+  if (!token) return null;
+  try {
+    const parsedToken = JSON.parse(token);
+    return parsedToken.token || token;
+  } catch (e) {
+    return token;
+  }
+};
+
+const getCurrentUser = async (
+  setMessage: (
+    message: { type: "error" | "success"; text: string } | null
+  ) => void
+): Promise<User | null> => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    console.error("❌ Không tìm thấy token. Vui lòng đăng nhập lại.");
+    setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
+    return null;
+  }
+
+  const jwtToken = getJwtToken(token);
+  if (!jwtToken) {
+    console.error("❌ Token không hợp lệ.");
+    setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/auth/me`,
+      {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+        },
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error(
+        `❌ Lỗi khi lấy user, status: ${response.status} ${response.statusText}`,
+        errorData
+      );
+      setMessage({
+        type: "error",
+        text: `❌ Lỗi: ${
+          errorData.message || "Không thể lấy thông tin người dùng"
+        }`,
+      });
+      if (response.status === 401) {
+        localStorage.removeItem("token");
+        setMessage({
+          type: "error",
+          text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
+        });
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const userData = await response.json();
+    console.log("✅ Lấy thông tin user thành công");
+    return {
+      id: userData.id,
+      username: userData.username || userData.email,
+      email: userData.email,
+    };
+  } catch (err) {
+    const error = err as Error;
+    console.error("❌ Lỗi khi lấy thông tin user:", error.message);
+    setMessage({
+      type: "error",
+      text: `❌ Lỗi: ${error.message || "Không thể kết nối server!"}`,
+    });
+    return null;
+  }
+};
+
 export default function ImportExcel() {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
-  const [userId, setUserId] = useState<string>("");
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [validationResult, setValidationResult] =
     useState<ValidationResult | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [showErrors, setShowErrors] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [message, setMessage] = useState<{
+    type: "error" | "success";
+    text: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const MySwal = withReactContent(Swal);
+  const navigate = useNavigate();
 
-  // Load results from localStorage on mount
+  // Load results from localStorage and get current user on mount
   useEffect(() => {
-    const storedValidationResult = localStorage.getItem("validationResult");
-    const storedImportResult = localStorage.getItem("importResult");
-    if (storedValidationResult) {
-      setValidationResult(JSON.parse(storedValidationResult));
-      setShowErrors(true);
-    }
-    if (storedImportResult) {
-      setImportResult(JSON.parse(storedImportResult));
-      setShowErrors(true);
-    }
-  }, []);
+    setIsLoading(true);
+    getCurrentUser(setMessage).then((user) => {
+      setIsLoading(false);
+      if (!user) {
+        navigate("/signin");
+        return;
+      }
+      setCurrentUser(user);
+
+      const storedValidationResult = localStorage.getItem("validationResult");
+      const storedImportResult = localStorage.getItem("importResult");
+      if (storedValidationResult) {
+        setValidationResult(JSON.parse(storedValidationResult));
+        setShowErrors(true);
+      }
+      if (storedImportResult) {
+        setImportResult(JSON.parse(storedImportResult));
+        setShowErrors(true);
+      }
+    });
+  }, [navigate]);
 
   // Save results to localStorage
   useEffect(() => {
@@ -82,7 +181,6 @@ export default function ImportExcel() {
   // Parse errors into structured format
   const parseErrors = (errors: string[]): ParsedError[] => {
     return errors.map((error) => {
-      // Match both "Row" and "Dòng" for flexibility
       const match = error.match(/(?:Dòng|Row) (\d+): (.+?): (.+)/);
       if (match) {
         return {
@@ -230,10 +328,10 @@ export default function ImportExcel() {
   };
 
   const handleImport = () => {
-    if (!file || !userId) {
+    if (!file || !currentUser) {
       MySwal.fire({
         title: "Lỗi",
-        text: "Vui lòng nhập Mã Giáo Viên (UserID) và chọn file!",
+        text: "Vui lòng chọn file và đảm bảo đã đăng nhập!",
         icon: "error",
       });
       return;
@@ -241,7 +339,7 @@ export default function ImportExcel() {
 
     setIsLoading(true);
     const formData = new FormData();
-    formData.append("userId", userId);
+    formData.append("userId", currentUser.id.toString());
     formData.append("file", file);
 
     const xhr = new XMLHttpRequest();
@@ -281,7 +379,6 @@ export default function ImportExcel() {
           fileInputRef.current.value = "";
         }
         setFile(null);
-        setUserId("");
         localStorage.removeItem("validationResult");
         localStorage.removeItem("importResult");
       } else {
@@ -315,9 +412,28 @@ export default function ImportExcel() {
       setIsLoading(false);
     };
 
-    console.log("Starting import for file:", file.name, "with userId:", userId);
+    console.log(
+      "Starting import for file:",
+      file.name,
+      "with userId:",
+      currentUser.id
+    );
     xhr.send(formData);
   };
+
+  if (!currentUser) {
+    return (
+      <div className="text-center text-red-600">
+        Vui lòng đăng nhập để sử dụng tính năng này!
+        <button
+          onClick={() => navigate("/signin")}
+          className="ml-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+        >
+          Đăng nhập
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -329,19 +445,27 @@ export default function ImportExcel() {
       <div className="space-y-6">
         <ComponentCard title="Import Danh Sách Học sinh">
           <div className="space-y-4">
+            {message && (
+              <div
+                className={`p-2 rounded-md border ${
+                  message.type === "error"
+                    ? "text-red-700 bg-red-100 border-red-300"
+                    : "text-green-700 bg-green-100 border-green-300"
+                }`}
+              >
+                {message.text}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Mã Giáo Viên (UserID) *
+                  Teacher
                 </label>
                 <input
-                  type="number"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  placeholder="Nhập Mã Giáo Viên (UserID)..."
-                  disabled={isLoading}
-                  required
+                  type="text"
+                  value={currentUser.username || currentUser.email}
+                  className="w-full border rounded-lg px-3 py-2 bg-gray-100"
+                  disabled
                 />
               </div>
               <div className="sm:col-span-2">
@@ -375,7 +499,7 @@ export default function ImportExcel() {
                 disabled={
                   isLoading ||
                   !file ||
-                  !userId ||
+                  !currentUser ||
                   (validationResult?.errorCount ?? 0) > 0
                 }
               >
