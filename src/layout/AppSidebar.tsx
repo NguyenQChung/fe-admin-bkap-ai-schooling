@@ -14,6 +14,11 @@ import {
   PlugInIcon,
   TableIcon,
   UserCircleIcon,
+  DocsIcon,
+  ChatIcon,
+  AlertHexaIcon,
+  UserIcon,
+  GroupIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import SidebarWidget from "./SidebarWidget";
@@ -53,7 +58,7 @@ const navItems: NavItem[] = [
   },
   {
     name: "Schools",
-    icon: <TableIcon />,
+    icon: <DocsIcon />,
     subItems: [
       { name: "Schools", path: "/schools", pro: false },
       { name: "Add School", path: "/add-school", pro: false },
@@ -69,7 +74,7 @@ const navItems: NavItem[] = [
   },
   {
     name: "Teachers",
-    icon: <TableIcon />,
+    icon: <UserIcon />,
     subItems: [
       { name: "Teachers", path: "/teachers", pro: false },
       { name: "New Teacher", path: "/new-teacher", pro: false },
@@ -78,7 +83,7 @@ const navItems: NavItem[] = [
 
   {
     name: "Student",
-    icon: <TableIcon />,
+    icon: <GroupIcon />,
     subItems: [
       { name: "Students", path: "/students", pro: false },
       { name: "Add Students", path: "/Add-Students", pro: false },
@@ -86,7 +91,7 @@ const navItems: NavItem[] = [
   },
   {
     name: "DefaultReply",
-    icon: <TableIcon />,
+    icon: <ChatIcon />,
     subItems: [
       { name: "Default Reply", path: "/DefaultReply", pro: false },
       { name: "Add Default Reply", path: "/add-default-reply", pro: false },
@@ -94,7 +99,7 @@ const navItems: NavItem[] = [
   },
   {
     name: "ForbiddenKeyword",
-    icon: <TableIcon />,
+    icon: <AlertHexaIcon />,
     subItems: [
       { name: "Forbidden Keyword", path: "/Forbidden-Keyword", pro: false },
       {
