@@ -32,6 +32,7 @@ import AddDefaultReply from "./pages/Forms/AddDefaultReply";
 import AddForbiddenkeyword from "./pages/Forms/AddForbiddenkeyword";
 import AddStudents from "./pages/Forms/AddStudents";
 import ImportExcel from "./pages/Tables/ImportExcel";
+import ProtectedRoute from "./components/ProtectedRoute";
 export default function App() {
   return (
     <>
@@ -40,7 +41,13 @@ export default function App() {
         <ToastContainer position="top-right" autoClose={2000} />
         <Routes>
           {/* Dashboard Layout */}
-          <Route element={<AppLayout />}>
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route index path="/" element={<Home />} />
 
             {/* Others Page */}
