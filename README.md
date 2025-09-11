@@ -8,7 +8,7 @@ With TailAdmin, you get access to all the necessary dashboard UI components, ele
 feature-rich and complete dashboard or admin panel. Whether you're building dashboard or admin panel for a complex web
 application or a simple website, TailAdmin is the perfect solution to help you get up and running quickly.
 
-![TailAdmin React.js Dashboard Preview](./banner.png)
+![TailAdmin   Dashboard Preview](./banner.png)
 
 ## Overview
 
@@ -75,7 +75,7 @@ git clone https://github.com/TailAdmin/free-react-tailwind-admin-dashboard.git
 
 ## Components
 
-TailAdmin is a pre-designed starting point for building a web-based dashboard using React.js and Tailwind CSS. The
+TailAdmin is a pre-designed starting point for building a web-based dashboard using   and Tailwind CSS. The
 template includes:
 
 - Sophisticated and accessible sidebar
@@ -184,7 +184,7 @@ A major update with comprehensive redesign and modern React patterns implementat
 
 ## License
 
-TailAdmin React.js Free Version is released under the MIT License.
+TailAdmin   Free Version is released under the MIT License.
 
 ## Support
 

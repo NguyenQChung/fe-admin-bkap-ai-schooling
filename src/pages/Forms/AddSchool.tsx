@@ -7,13 +7,31 @@ import Swal from "sweetalert2";
 export default function AddSchool() {
 
   const API_URL = import.meta.env.VITE_API_URL || "";
-
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
+  const [errors, setErrors] = useState<{ name?: string; address?: string }>({});
+
+
+  const validate = () => {
+    const newErrors: typeof errors = {};
+    if (!name) {
+      newErrors.name = "Tên trường không được để trống ";
+    }
+
+    if (!address) {
+      newErrors.address = "Địa chỉ không được để trống";
+    } else if (address.length < 3) {
+      newErrors.address = "địa chỉ phải có ít nhất 6 ký tự";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
 
     const teacherData = {
       name,
@@ -53,8 +71,8 @@ export default function AddSchool() {
   return (
     <>
       <PageMeta
-        title="Thêm Trường Học | TailAdmin"
-        description="Trang thêm Trường Học mới"
+        title="Thêm Trường Học "
+        description="Trang Thêm Trường Học mới"
       />
       <PageBreadcrumb pageTitle="Thêm Trường Học" />
       <div className="space-y-6">
@@ -69,9 +87,11 @@ export default function AddSchool() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="mt-1 block w-full border rounded-md px-3 py-2"
-                required
               />
             </div>
+            {errors.name && (
+              <p className="mt-1 text-sm text-red-500">{errors.name}</p>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
@@ -84,6 +104,9 @@ export default function AddSchool() {
                 className="mt-1 block w-full border rounded-md px-3 py-2"
               />
             </div>
+            {errors.address && (
+              <p className="mt-1 text-sm text-red-500">{errors.address}</p>
+            )}
 
             <button
               type="submit"
