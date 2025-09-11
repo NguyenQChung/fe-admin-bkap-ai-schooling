@@ -89,9 +89,8 @@ const getCurrentUser = async (
       );
       setMessage({
         type: "error",
-        text: `❌ Lỗi: ${
-          errorData.message || "Không thể lấy thông tin người dùng"
-        }`,
+        text: `❌ Lỗi: ${errorData.message || "Không thể lấy thông tin người dùng"
+          }`,
       });
       if (response.status === 401) {
         localStorage.removeItem("token");
@@ -207,21 +206,18 @@ export default function ImportExcel() {
           </thead>
           <tbody>
             ${errors
-              .map(
-                (error, index) =>
-                  `<tr class="${
-                    index % 2 === 0 ? "bg-red-50" : "bg-red-100"
-                  } hover:bg-red-200">
+        .map(
+          (error, index) =>
+            `<tr class="${index % 2 === 0 ? "bg-red-50" : "bg-red-100"
+            } hover:bg-red-200">
                     <td class="px-4 py-2 text-sm text-red-600">${error.row}</td>
-                    <td class="px-4 py-2 text-sm text-red-600">${
-                      error.message
-                    }</td>
-                    <td class="px-4 py-2 text-sm text-red-600 font-mono">${
-                      error.value
-                    }</td>
+                    <td class="px-4 py-2 text-sm text-red-600">${error.message
+            }</td>
+                    <td class="px-4 py-2 text-sm text-red-600 font-mono">${error.value
+            }</td>
                   </tr>`
-              )
-              .join("")}
+        )
+        .join("")}
           </tbody>
         </table>
       </div>
@@ -282,9 +278,8 @@ export default function ImportExcel() {
             title: "Cảnh báo",
             html: `
               <div class="text-left">
-                <p class="text-sm text-gray-700 mb-2">Tổng: ${
-                  data.total
-                }, Hợp lệ: ${data.valid}, Lỗi: ${data.errorCount}</p>
+                <p class="text-sm text-gray-700 mb-2">Tổng: ${data.total
+              }, Hợp lệ: ${data.valid}, Lỗi: ${data.errorCount}</p>
                 ${generateErrorTableHtml(parseErrors(data.errors))}
               </div>
             `,
@@ -438,7 +433,7 @@ export default function ImportExcel() {
   return (
     <>
       <PageMeta
-        title="Import Học sinh | TailAdmin - React.js Admin Dashboard Template"
+        title="Import Học sinh | TailAdmin -   Admin Dashboard Template"
         description="Import danh sách học sinh từ file Excel"
       />
       <PageBreadcrumb pageTitle="Import Học sinh" />
@@ -447,11 +442,10 @@ export default function ImportExcel() {
           <div className="space-y-4">
             {message && (
               <div
-                className={`p-2 rounded-md border ${
-                  message.type === "error"
+                className={`p-2 rounded-md border ${message.type === "error"
                     ? "text-red-700 bg-red-100 border-red-300"
                     : "text-green-700 bg-green-100 border-green-300"
-                }`}
+                  }`}
               >
                 {message.text}
               </div>

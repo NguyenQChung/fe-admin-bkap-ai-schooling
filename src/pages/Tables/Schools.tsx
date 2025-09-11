@@ -109,10 +109,10 @@ export default function School() {
   return (
     <>
       <PageMeta
-        title="React.js Basic Tables Dashboard | TailAdmin - Next.js Admin Dashboard Template"
-        description="This is React.js Basic Tables Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title=" School Dashboard"
+        description="This is  Dashboard page for TailAdmin -   Tailwind CSS Admin Dashboard Template"
       />
-      <PageBreadcrumb pageTitle="Basic Tables" />
+      <PageBreadcrumb pageTitle="Danh sách Trường" />
       <div className="space-y-6">
         <ComponentCard title="Danh sách Trường">
           <table className="min-w-full divide-y divide-gray-200">

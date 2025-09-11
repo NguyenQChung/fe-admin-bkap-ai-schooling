@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
 import PageMeta from "../../components/common/PageMeta";
@@ -69,9 +69,8 @@ const getCurrentUser = async (
       );
       setMessage({
         type: "error",
-        text: `❌ Lỗi: ${
-          errorData.message || "Không thể lấy thông tin người dùng"
-        }`,
+        text: `❌ Lỗi: ${errorData.message || "Không thể lấy thông tin người dùng"
+          }`,
       });
       if (response.status === 401) {
         localStorage.removeItem("token");
@@ -286,17 +285,9 @@ export default function AddDefaultReply() {
   };
 
   if (!currentUser) {
-    return (
-      <div className="text-center text-red-600">
-        Vui lòng đăng nhập để sử dụng tính năng này!
-        <button
-          onClick={() => navigate("/signin")}
-          className="ml-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          Đăng nhập
-        </button>
-      </div>
-    );
+    return
+    <Navigate to="/signin" replace />;
+
   }
 
   return (
@@ -308,17 +299,6 @@ export default function AddDefaultReply() {
       <PageBreadcrumb pageTitle="Thêm Default Reply" />
       <div className="space-y-6">
         <ComponentCard title="Thêm Default Reply">
-          {message && (
-            <div
-              className={`p-2 rounded-md border ${
-                message.type === "error"
-                  ? "text-red-700 bg-red-100 border-red-300"
-                  : "text-green-700 bg-green-100 border-green-300"
-              }`}
-            >
-              {message.text}
-            </div>
-          )}
           {isLoading ? (
             <div className="text-center py-4">Đang tải...</div>
           ) : (

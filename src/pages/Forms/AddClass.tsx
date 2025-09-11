@@ -64,16 +64,16 @@ export default function AddClass() {
   return (
     <>
       <PageMeta
-        title="Thêm Trường Học | TailAdmin"
-        description="Trang thêm Trường Học mới"
+        title="Thêm Lớp Học"
+        description="Trang Thêm Lớp Học mới"
       />
-      <PageBreadcrumb pageTitle="Thêm Trường Học" />
+      <PageBreadcrumb pageTitle="Thêm Lớp Học" />
       <div className="space-y-6">
-        <ComponentCard title="Thêm Trường Học">
+        <ComponentCard title="Thêm Lớp Học">
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Tên Trường
+                Tên Lớp
               </label>
               <input
                 type="text"
@@ -86,14 +86,14 @@ export default function AddClass() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Lớp Chủ nhiệm
+                Thuộc Trường
               </label>
               <select
                 value={schoolId}
                 onChange={(e) => setSchoolId(e.target.value ? Number(e.target.value) : "")}
                 className="mt-1 block w-full border rounded-md px-3 py-2"
               >
-                <option value="">— Chọn lớp —</option>
+                <option value="">— Chọn Trường —</option>
                 {schools.map((cls) => (
                   <option key={cls.id} value={cls.id}>
                     {cls.name}
