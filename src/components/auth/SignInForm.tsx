@@ -11,11 +11,15 @@ import withReactContent from "sweetalert2-react-content";
 export default function SignInForm() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ identifier?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{
+    identifier?: string;
+    password?: string;
+  }>({});
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
+  const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
   const MySwal = withReactContent(Swal);
 
@@ -39,6 +43,7 @@ export default function SignInForm() {
 
   const handleLogin = async () => {
     if (!validate()) return;
+    setLoading(true);
 
     try {
       const res = await fetch(`${API_URL}/auth/login`, {
@@ -57,11 +62,18 @@ export default function SignInForm() {
       if (!token) throw new Error("Không tìm thấy token trong phản hồi");
 
       localStorage.setItem("token", token);
-      MySwal.fire("Thành công", "Đăng nhập thành công!", "success");
-      navigate("/");
+
+      // 🔹 Giữ spinner thêm 1.5s trước khi alert
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      await MySwal.fire("Thành công", "Đăng nhập thành công!", "success");
+
+      navigate("/"); // chuyển trang sau khi alert
     } catch (err) {
       const error = err as Error;
       MySwal.fire("Lỗi", `Đăng nhập thất bại: ${error.message}`, "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,6 +88,7 @@ export default function SignInForm() {
           Back to dashboard
         </Link>
       </div>
+
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
         <div>
           <div className="mb-5 sm:mb-8">
@@ -86,6 +99,7 @@ export default function SignInForm() {
               Enter your email and password to sign in!
             </p>
           </div>
+
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -104,7 +118,9 @@ export default function SignInForm() {
                   onChange={(e) => setIdentifier(e.target.value)}
                 />
                 {errors.identifier && (
-                  <p className="mt-1 text-sm text-red-500">{errors.identifier}</p>
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.identifier}
+                  </p>
                 )}
               </div>
 
@@ -145,7 +161,7 @@ export default function SignInForm() {
                   </span>
                 </div>
                 <Link
-                  to="/reset-password"
+                  to="/forgot-password"
                   className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400"
                 >
                   Forgot password?
@@ -154,8 +170,16 @@ export default function SignInForm() {
 
               {/* Submit */}
               <div>
-                <Button className="w-full" size="sm" type="submit">
-                  Sign in
+                <Button
+                  className="w-full flex items-center justify-center gap-2"
+                  size="sm"
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading && (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  )}
+                  {loading ? "Đang đăng nhập..." : "Sign in"}
                 </Button>
               </div>
             </div>
