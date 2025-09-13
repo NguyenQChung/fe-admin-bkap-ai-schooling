@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import PageBreadcrumb from "../../components/common/PageBreadCrumb";
-import ComponentCard from "../../components/common/ComponentCard";
-import PageMeta from "../../components/common/PageMeta";
 import { Edit, Trash2, Plus } from "lucide-react";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import PageBreadcrumb from "../../components/common/PageBreadCrumb";
+import ComponentCard from "../../components/common/ComponentCard";
+import PageMeta from "../../components/common/PageMeta";
+import SearchSortTable, {
+  SortOption,
+} from "../../components/tables/SearchSortTable";
 import {
   Dialog,
   DialogContent,
@@ -65,9 +68,7 @@ const getCurrentUser = async (
     const response = await fetch(
       `${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/auth/me`,
       {
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-        },
+        headers: { Authorization: `Bearer ${jwtToken}` },
       }
     );
     if (!response.ok) {
@@ -114,10 +115,12 @@ export default function ForbiddenKeyword() {
   const [forbiddenKeywords, setForbiddenKeywords] = useState<
     ForbiddenKeyword[]
   >([]);
+  const [filteredKeywords, setFilteredKeywords] = useState<ForbiddenKeyword[]>(
+    []
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
-  const forbiddenKeywordsPerPage = 10;
   const [editingForbiddenKeyword, setEditingForbiddenKeyword] =
     useState<ForbiddenKeyword | null>(null);
   const [message, setMessage] = useState<{
@@ -127,6 +130,8 @@ export default function ForbiddenKeyword() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const forbiddenKeywordsPerPage = 10;
+  const MySwal = withReactContent(Swal);
 
   useEffect(() => {
     if (message) {
@@ -154,9 +159,7 @@ export default function ForbiddenKeyword() {
       }
 
       fetch(`${API_URL}/forbidden-keywords`, {
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-        },
+        headers: { Authorization: `Bearer ${jwtToken}` },
       })
         .then((res) => {
           if (!res.ok) {
@@ -176,12 +179,15 @@ export default function ForbiddenKeyword() {
           if (Array.isArray(data)) {
             console.log("✅ Tải dữ liệu forbidden-keywords thành công");
             setForbiddenKeywords(data);
+            setFilteredKeywords(data);
           } else if (data && Array.isArray(data.content)) {
             console.log("✅ Tải dữ liệu forbidden-keywords thành công");
             setForbiddenKeywords(data.content);
+            setFilteredKeywords(data.content);
           } else {
             console.error("Unexpected API format:", data);
             setForbiddenKeywords([]);
+            setFilteredKeywords([]);
           }
         })
         .catch((err) => {
@@ -204,12 +210,12 @@ export default function ForbiddenKeyword() {
   // Pagination
   const indexOfLastKeyword = currentPage * forbiddenKeywordsPerPage;
   const indexOfFirstKeyword = indexOfLastKeyword - forbiddenKeywordsPerPage;
-  const currentForbiddenKeywords = forbiddenKeywords.slice(
+  const currentForbiddenKeywords = filteredKeywords.slice(
     indexOfFirstKeyword,
     indexOfLastKeyword
   );
   const totalPages = Math.ceil(
-    forbiddenKeywords.length / forbiddenKeywordsPerPage
+    filteredKeywords.length / forbiddenKeywordsPerPage
   );
 
   const handlePageChange = (page: number) => {
@@ -217,7 +223,6 @@ export default function ForbiddenKeyword() {
   };
 
   // Delete ForbiddenKeyword
-  const MySwal = withReactContent(Swal);
   const handleDelete = async (id: number) => {
     const result = await MySwal.fire({
       title: "Bạn có chắc muốn xóa?",
@@ -247,9 +252,7 @@ export default function ForbiddenKeyword() {
         setIsLoading(true);
         const res = await fetch(`${API_URL}/forbidden-keywords/${id}`, {
           method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
+          headers: { Authorization: `Bearer ${jwtToken}` },
         });
 
         if (!res.ok) {
@@ -271,6 +274,7 @@ export default function ForbiddenKeyword() {
         }
 
         setForbiddenKeywords((prev) => prev.filter((r) => r.id !== id));
+        setFilteredKeywords((prev) => prev.filter((r) => r.id !== id));
         console.log("✅ Xóa forbidden keyword thành công");
         MySwal.fire(
           "Thành công",
@@ -379,6 +383,9 @@ export default function ForbiddenKeyword() {
       setForbiddenKeywords((prev) =>
         prev.map((r) => (r.id === updatedKeyword.id ? updatedKeyword : r))
       );
+      setFilteredKeywords((prev) =>
+        prev.map((r) => (r.id === updatedKeyword.id ? updatedKeyword : r))
+      );
       setEditingForbiddenKeyword(null);
       setDuplicateWarning(null);
       console.log("✅ Cập nhật forbidden keyword thành công");
@@ -399,6 +406,46 @@ export default function ForbiddenKeyword() {
       setIsLoading(false);
     }
   };
+
+  // Define sort options for SearchSortTable
+  const sortOptions: SortOption<ForbiddenKeyword>[] = [
+    {
+      label: "Từ khóa A-Z",
+      value: "keywordAsc",
+      sorter: (a: ForbiddenKeyword, b: ForbiddenKeyword) =>
+        a.keyword.localeCompare(b.keyword),
+    },
+    {
+      label: "Từ khóa Z-A",
+      value: "keywordDesc",
+      sorter: (a: ForbiddenKeyword, b: ForbiddenKeyword) =>
+        b.keyword.localeCompare(a.keyword),
+    },
+    {
+      label: "Người tạo A-Z",
+      value: "createdByAsc",
+      sorter: (a: ForbiddenKeyword, b: ForbiddenKeyword) => {
+        const nameA = a.createdBy?.username || a.createdBy?.email || "";
+        const nameB = b.createdBy?.username || b.createdBy?.email || "";
+        return nameA.localeCompare(nameB);
+      },
+    },
+    {
+      label: "Người tạo Z-A",
+      value: "createdByDesc",
+      sorter: (a: ForbiddenKeyword, b: ForbiddenKeyword) => {
+        const nameA = a.createdBy?.username || a.createdBy?.email || "";
+        const nameB = b.createdBy?.username || b.createdBy?.email || "";
+        return nameB.localeCompare(nameA);
+      },
+    },
+  ];
+
+  // Define search field for SearchSortTable
+  const getSearchField = (item: ForbiddenKeyword) =>
+    `${item.keyword} ${item.createdBy?.username || ""} ${
+      item.createdBy?.email || ""
+    }`;
 
   if (!currentUser) {
     return (
@@ -430,7 +477,7 @@ export default function ForbiddenKeyword() {
             <Button
               variant="primary"
               onClick={() => navigate("/add-forbidden-keyword")}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
             >
               <Plus className="mr-2 h-4 w-4" /> Thêm Từ khóa Cấm
             </Button>
@@ -450,78 +497,89 @@ export default function ForbiddenKeyword() {
             <div className="text-center py-4">Đang tải...</div>
           ) : (
             <>
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      STT
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Từ khóa
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Người tạo
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Hành động
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentForbiddenKeywords.length > 0 ? (
-                    currentForbiddenKeywords.map((keyword, index) => (
-                      <tr key={keyword.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {indexOfFirstKeyword + index + 1}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {keyword.keyword}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {keyword.createdBy
-                            ? keyword.createdBy.username ||
-                              keyword.createdBy.email ||
-                              "Unknown User"
-                            : "Unknown User"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleEdit(keyword)}
-                              className="flex items-center px-3 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600"
-                              disabled={isLoading}
-                            >
-                              <Edit className="mr-1 h-4 w-4" /> Sửa
-                            </button>
-                            <button
-                              onClick={() => handleDelete(keyword.id)}
-                              className="flex items-center px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600"
-                              disabled={isLoading}
-                            >
-                              <Trash2 className="mr-1 h-4 w-4" /> Xóa
-                            </button>
-                          </div>
+              <SearchSortTable
+                data={forbiddenKeywords}
+                onChange={setFilteredKeywords}
+                getSearchField={getSearchField}
+                sortOptions={sortOptions}
+              />
+              <div className="overflow-x-auto">
+                <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg">
+                  <thead className="bg-gray-100 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                        STT
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                        Từ khóa
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                        Người tạo
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                        Hành động
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                    {currentForbiddenKeywords.length > 0 ? (
+                      currentForbiddenKeywords.map((keyword, index) => (
+                        <tr key={keyword.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            {indexOfFirstKeyword + index + 1}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            {keyword.keyword}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            {keyword.createdBy
+                              ? keyword.createdBy.username ||
+                                keyword.createdBy.email ||
+                                "Unknown User"
+                              : "Unknown User"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleEdit(keyword)}
+                                className="flex items-center px-3 py-1 text-sm text-white bg-blue-500 rounded-lg hover:bg-blue-600"
+                                disabled={isLoading}
+                              >
+                                <Edit className="mr-1 h-4 w-4" /> Sửa
+                              </button>
+                              <button
+                                onClick={() => handleDelete(keyword.id)}
+                                className="flex items-center px-3 py-1 text-sm text-white bg-red-500 rounded-lg hover:bg-red-600"
+                                disabled={isLoading}
+                              >
+                                <Trash2 className="mr-1 h-4 w-4" /> Xóa
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan={4}
+                          className="text-center py-4 text-sm text-gray-900 dark:text-gray-100"
+                        >
+                          Không có từ khóa cấm nào
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={4} className="text-center py-4">
-                        Không có từ khóa cấm nào
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    )}
+                  </tbody>
+                </table>
+              </div>
               <div className="flex justify-center mt-4 space-x-2">
                 {Array.from({ length: totalPages }, (_, i) => (
                   <button
                     key={i}
                     onClick={() => handlePageChange(i + 1)}
-                    className={`px-3 py-1 border rounded ${
+                    className={`px-3 py-1 border rounded-lg ${
                       currentPage === i + 1
                         ? "bg-blue-500 text-white"
-                        : "bg-white text-blue-500"
+                        : "bg-white dark:bg-gray-800 text-blue-500 dark:text-blue-400 border-gray-300 dark:border-gray-600"
                     }`}
                     disabled={isLoading}
                   >
@@ -541,17 +599,16 @@ export default function ForbiddenKeyword() {
           setDuplicateWarning(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Chỉnh sửa Từ khóa Cấm</DialogTitle>
             <DialogDescription>
-              Chỉnh sửa nội dung của từ khóa cấm. Vui lòng đảm bảo từ khóa là
-              duy nhất.
+              Vui lòng đảm bảo từ khóa là duy nhất.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Từ khóa
               </label>
               <input
@@ -571,7 +628,7 @@ export default function ForbiddenKeyword() {
                     )
                   );
                 }}
-                className="w-full border rounded px-3 py-2"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-100"
                 placeholder="Nhập từ khóa cấm..."
                 disabled={isLoading}
                 required
@@ -581,7 +638,7 @@ export default function ForbiddenKeyword() {
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Người tạo
               </label>
               <input
@@ -593,7 +650,7 @@ export default function ForbiddenKeyword() {
                       "Unknown User"
                     : "Unknown User"
                 }
-                className="w-full border rounded px-3 py-2 bg-gray-100"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 dark:text-gray-100"
                 disabled
               />
             </div>

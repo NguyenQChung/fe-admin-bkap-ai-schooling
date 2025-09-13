@@ -1,11 +1,14 @@
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import PageBreadcrumb from "../../components/common/PageBreadCrumb";
-import ComponentCard from "../../components/common/ComponentCard";
-import PageMeta from "../../components/common/PageMeta";
 import { Edit, Trash2, Plus } from "lucide-react";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import PageBreadcrumb from "../../components/common/PageBreadCrumb";
+import ComponentCard from "../../components/common/ComponentCard";
+import PageMeta from "../../components/common/PageMeta";
+import SearchSortTable, {
+  SortOption,
+} from "../../components/tables/SearchSortTable";
 import {
   Dialog,
   DialogContent,
@@ -49,73 +52,53 @@ const getCurrentUser = async (
 ): Promise<User | null> => {
   const token = localStorage.getItem("token");
   if (!token) {
-    console.error("❌ Không tìm thấy token. Vui lòng đăng nhập lại.");
     setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
     return null;
   }
-
   const jwtToken = getJwtToken(token);
   if (!jwtToken) {
-    console.error("❌ Token không hợp lệ.");
     setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
     return null;
   }
-
   try {
     const response = await fetch(
       `${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/auth/me`,
       {
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-        },
+        headers: { Authorization: `Bearer ${jwtToken}` },
       }
     );
     if (!response.ok) {
       const errorData = await response.json();
-      console.error(
-        `❌ Lỗi khi lấy user, status: ${response.status} ${response.statusText}`,
-        errorData
-      );
       setMessage({
         type: "error",
         text: `❌ Lỗi: ${
           errorData.message || "Không thể lấy thông tin người dùng"
         }`,
       });
-      if (response.status === 401) {
-        localStorage.removeItem("token");
-        setMessage({
-          type: "error",
-          text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
-        });
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
+      if (response.status === 401) localStorage.removeItem("token");
+      return null;
     }
     const userData = await response.json();
-    console.log("✅ Lấy thông tin user thành công");
     return {
       id: userData.id,
       username: userData.username || userData.email,
       email: userData.email,
     };
   } catch (err) {
-    const error = err as Error;
-    console.error("❌ Lỗi khi lấy thông tin user:", error.message);
     setMessage({
       type: "error",
-      text: `❌ Lỗi: ${error.message || "Không thể kết nối server!"}`,
+      text: `❌ Lỗi: ${(err as Error).message || "Không thể kết nối server!"}`,
     });
     return null;
   }
 };
 
-export default function DefaultReply() {
+export default function DefaultReplyPage() {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
   const [defaultReplies, setDefaultReplies] = useState<DefaultReply[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [filteredReplies, setFilteredReplies] = useState<DefaultReply[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
-  const defaultRepliesPerPage = 10;
   const [editingDefaultReply, setEditingDefaultReply] =
     useState<DefaultReply | null>(null);
   const [message, setMessage] = useState<{
@@ -125,6 +108,7 @@ export default function DefaultReply() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const MySwal = withReactContent(Swal);
 
   useEffect(() => {
     if (message) {
@@ -136,13 +120,11 @@ export default function DefaultReply() {
   useEffect(() => {
     setIsLoading(true);
     getCurrentUser(setMessage).then((user) => {
-      setIsLoading(false);
       if (!user) {
         navigate("/signin");
         return;
       }
       setCurrentUser(user);
-
       const token = localStorage.getItem("token");
       const jwtToken = getJwtToken(token);
       if (!jwtToken) {
@@ -150,40 +132,19 @@ export default function DefaultReply() {
         navigate("/signin");
         return;
       }
-
       fetch(`${API_URL}/default-replies`, {
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-        },
+        headers: { Authorization: `Bearer ${jwtToken}` },
       })
         .then((res) => {
-          if (!res.ok) {
-            if (res.status === 401) {
-              localStorage.removeItem("token");
-              setMessage({
-                type: "error",
-                text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
-              });
-              navigate("/signin");
-            }
-            throw new Error(`HTTP error! status: ${res.status}`);
-          }
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
           return res.json();
         })
         .then((data) => {
-          if (Array.isArray(data)) {
-            console.log("✅ Tải dữ liệu default-replies thành công");
-            setDefaultReplies(data);
-          } else if (data && Array.isArray(data.content)) {
-            console.log("✅ Tải dữ liệu default-replies thành công");
-            setDefaultReplies(data.content);
-          } else {
-            console.error("Unexpected API format:", data);
-            setDefaultReplies([]);
-          }
+          const replies = Array.isArray(data) ? data : data.content || [];
+          setDefaultReplies(replies);
+          setFilteredReplies(replies);
         })
         .catch((err) => {
-          console.error("Error fetching default replies:", err);
           setMessage({
             type: "error",
             text: `❌ Lỗi: ${err.message || "Không thể tải dữ liệu!"}`,
@@ -194,27 +155,9 @@ export default function DefaultReply() {
   }, [navigate]);
 
   useEffect(() => {
-    if (editingDefaultReply && inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (editingDefaultReply && inputRef.current) inputRef.current.focus();
   }, [editingDefaultReply]);
 
-  // Pagination
-  const indexOfLastDefaultReply = currentPage * defaultRepliesPerPage;
-  const indexOfFirstDefaultReply =
-    indexOfLastDefaultReply - defaultRepliesPerPage;
-  const currentDefaultReplies = defaultReplies.slice(
-    indexOfFirstDefaultReply,
-    indexOfLastDefaultReply
-  );
-  const totalPages = Math.ceil(defaultReplies.length / defaultRepliesPerPage);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  // Delete DefaultReply
-  const MySwal = withReactContent(Swal);
   const handleDelete = async (id: number) => {
     const result = await MySwal.fire({
       title: "Bạn có chắc muốn xóa?",
@@ -224,91 +167,50 @@ export default function DefaultReply() {
       confirmButtonText: "Xóa",
       cancelButtonText: "Hủy",
     });
-
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem("token");
-        if (!token) {
-          setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
-          navigate("/signin");
-          return;
-        }
-
         const jwtToken = getJwtToken(token);
         if (!jwtToken) {
-          setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
           navigate("/signin");
           return;
         }
-
         setIsLoading(true);
         const res = await fetch(`${API_URL}/default-replies/${id}`, {
           method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
+          headers: { Authorization: `Bearer ${jwtToken}` },
         });
-
-        if (!res.ok) {
-          const errorData = await res.json();
-          console.error("❌ Lỗi từ server:", errorData);
-          if (res.status === 401) {
-            localStorage.removeItem("token");
-            setMessage({
-              type: "error",
-              text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
-            });
-            navigate("/signin");
-          }
-          setMessage({
-            type: "error",
-            text: `❌ Lỗi: ${errorData.message || "Xóa thất bại"}`,
-          });
-          return;
-        }
-
+        if (!res.ok) throw new Error("Xóa thất bại");
         setDefaultReplies((prev) => prev.filter((r) => r.id !== id));
+        setFilteredReplies((prev) => prev.filter((r) => r.id !== id));
         MySwal.fire("Thành công", "Xóa default reply thành công", "success");
       } catch (err) {
-        const error = err as Error;
-        console.error("❌ Lỗi khi xóa:", error.message);
-        MySwal.fire(
-          "Lỗi",
-          `Không thể xóa default reply: ${error.message}`,
-          "error"
-        );
+        MySwal.fire("Lỗi", "Không thể xóa default reply", "error");
       } finally {
         setIsLoading(false);
       }
     }
   };
 
-  // Open edit dialog
   const handleEdit = (defaultReply: DefaultReply) => {
     setEditingDefaultReply(defaultReply);
     setDuplicateWarning(null);
   };
 
-  // Check duplicate replyText
   const checkDuplicateReplyText = (replyText: string, currentId?: number) => {
     const normalizedInput = replyText.trim().toLowerCase();
-    if (!normalizedInput) {
-      return "Từ khóa không được để trống.";
-    }
-    const isDuplicate = defaultReplies.some(
+    if (!normalizedInput) return "Từ khóa không được để trống.";
+    return defaultReplies.some(
       (reply) =>
         reply.replyText.trim().toLowerCase() === normalizedInput &&
         reply.id !== currentId
-    );
-    return isDuplicate
+    )
       ? "Từ khóa này đã tồn tại. Vui lòng chọn từ khóa khác."
       : null;
   };
 
-  // Save edit
   const handleSaveEdit = async () => {
     if (!editingDefaultReply || !currentUser) return;
-
     const duplicateMessage = checkDuplicateReplyText(
       editingDefaultReply.replyText,
       editingDefaultReply.id
@@ -317,32 +219,18 @@ export default function DefaultReply() {
       setDuplicateWarning(duplicateMessage);
       return;
     }
-
     try {
       const token = localStorage.getItem("token");
-      if (!token) {
-        setMessage({ type: "error", text: "❌ Vui lòng đăng nhập lại!" });
-        navigate("/signin");
-        return;
-      }
-
       const jwtToken = getJwtToken(token);
       if (!jwtToken) {
-        setMessage({ type: "error", text: "❌ Token không hợp lệ!" });
         navigate("/signin");
         return;
       }
-
       setIsLoading(true);
       const payload = {
         replyText: editingDefaultReply.replyText.trim(),
         createdById: currentUser.id,
       };
-      console.log(
-        "📤 Yêu cầu PUT tới:",
-        `${API_URL}/default-replies/${editingDefaultReply.id}`
-      );
-      console.log("📤 Payload:", JSON.stringify(payload, null, 2));
       const res = await fetch(
         `${API_URL}/default-replies/${editingDefaultReply.id}`,
         {
@@ -354,44 +242,60 @@ export default function DefaultReply() {
           body: JSON.stringify(payload),
         }
       );
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error("❌ Lỗi từ server:", errorData);
-        if (res.status === 401) {
-          localStorage.removeItem("token");
-          setMessage({
-            type: "error",
-            text: "❌ Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
-          });
-          navigate("/signin");
-        }
-        setMessage({
-          type: "error",
-          text: `❌ Lỗi: ${errorData.message || "Cập nhật thất bại"}`,
-        });
-        return;
-      }
-
+      if (!res.ok) throw new Error("Cập nhật thất bại");
       const updatedReply = await res.json();
       setDefaultReplies((prev) =>
         prev.map((r) => (r.id === updatedReply.id ? updatedReply : r))
       );
+      setFilteredReplies((prev) =>
+        prev.map((r) => (r.id === updatedReply.id ? updatedReply : r))
+      );
       setEditingDefaultReply(null);
-      setDuplicateWarning(null);
       MySwal.fire("Thành công", "Cập nhật default reply thành công", "success");
     } catch (err) {
-      const error = err as Error;
-      console.error("❌ Lỗi khi gửi request:", error.message);
-      MySwal.fire(
-        "Lỗi",
-        `Không thể cập nhật default reply: ${error.message}`,
-        "error"
-      );
+      MySwal.fire("Lỗi", "Không thể cập nhật default reply", "error");
     } finally {
       setIsLoading(false);
     }
   };
+
+  const sortOptions: SortOption<DefaultReply>[] = [
+    {
+      label: "Từ khóa A-Z",
+      value: "replyTextAsc",
+      sorter: (a: DefaultReply, b: DefaultReply) =>
+        a.replyText.localeCompare(b.replyText),
+    },
+    {
+      label: "Từ khóa Z-A",
+      value: "replyTextDesc",
+      sorter: (a: DefaultReply, b: DefaultReply) =>
+        b.replyText.localeCompare(a.replyText),
+    },
+    {
+      label: "Người tạo A-Z",
+      value: "createdByAsc",
+      sorter: (a: DefaultReply, b: DefaultReply) => {
+        const nameA = a.createdBy?.username || a.createdBy?.email || "";
+        const nameB = b.createdBy?.username || b.createdBy?.email || "";
+        return nameA.localeCompare(nameB);
+      },
+    },
+    {
+      label: "Người tạo Z-A",
+      value: "createdByDesc",
+      sorter: (a: DefaultReply, b: DefaultReply) => {
+        const nameA = a.createdBy?.username || a.createdBy?.email || "";
+        const nameB = b.createdBy?.username || b.createdBy?.email || "";
+        return nameB.localeCompare(nameB);
+      },
+    },
+  ];
+
+  const getSearchField = (item: DefaultReply) =>
+    `${item.replyText} ${item.createdBy?.username || ""} ${
+      item.createdBy?.email || ""
+    }`;
 
   if (!currentUser) {
     return (
@@ -410,10 +314,11 @@ export default function DefaultReply() {
   return (
     <>
       <PageMeta
-        title="Danh sách Default Replies | TailAdmin - Next.js Admin Dashboard Template"
-        description="Trang danh sách Default Replies cho TailAdmin"
+        title="Danh sách Default Replies"
+        description="Trang danh sách Default Replies"
       />
       <PageBreadcrumb pageTitle="Danh sách Default Replies" />
+
       <div className="space-y-6">
         <ComponentCard title="">
           <div className="flex justify-between items-center mb-4">
@@ -423,14 +328,15 @@ export default function DefaultReply() {
             <Button
               variant="primary"
               onClick={() => navigate("/add-default-reply")}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
             >
               <Plus className="mr-2 h-4 w-4" /> Thêm Default Reply
             </Button>
           </div>
+
           {message && (
             <div
-              className={`p-2 rounded-md border ${
+              className={`p-3 rounded-md border ${
                 message.type === "error"
                   ? "text-red-700 bg-red-100 border-red-300"
                   : "text-green-700 bg-green-100 border-green-300"
@@ -439,88 +345,72 @@ export default function DefaultReply() {
               {message.text}
             </div>
           )}
+
           {isLoading ? (
             <div className="text-center py-4">Đang tải...</div>
           ) : (
             <>
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      STT
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Từ khóa
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Người tạo
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Hành động
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentDefaultReplies.length > 0 ? (
-                    currentDefaultReplies.map((reply, index) => (
-                      <tr key={reply.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {indexOfFirstDefaultReply + index + 1}
+              <SearchSortTable
+                data={defaultReplies}
+                onChange={setFilteredReplies}
+                getSearchField={getSearchField}
+                sortOptions={sortOptions}
+              />
+              <div className="overflow-x-auto">
+                <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg">
+                  <thead>
+                    <tr className="bg-gray-100 dark:bg-gray-700">
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-100">
+                        STT
+                      </th>
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-100">
+                        Từ khóa
+                      </th>
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-100">
+                        Người tạo
+                      </th>
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-100">
+                        Hành động
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredReplies.map((reply) => (
+                      <tr
+                        key={reply.id}
+                        className="border-t dark:border-gray-600"
+                      >
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
+                          {reply.id}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
                           {reply.replyText}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {reply.createdBy
-                            ? reply.createdBy.username ||
-                              reply.createdBy.email ||
-                              "Unknown User"
-                            : "Unknown User"}
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
+                          {reply.createdBy?.username ||
+                            reply.createdBy?.email ||
+                            "Unknown"}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-2 text-sm">
                           <div className="flex space-x-2">
                             <button
                               onClick={() => handleEdit(reply)}
-                              className="flex items-center px-3 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600"
-                              disabled={isLoading}
+                              className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 flex items-center"
                             >
-                              <Edit className="mr-1 h-4 w-4" /> Sửa
+                              <Edit className="mr-1 h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(reply.id)}
-                              className="flex items-center px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600"
-                              disabled={isLoading}
+                              className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 flex items-center"
                             >
-                              <Trash2 className="mr-1 h-4 w-4" /> Xóa
+                              <Trash2 className="mr-1 h-4 w-4" />
                             </button>
                           </div>
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={4} className="text-center py-4">
-                        Không có default reply nào
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-              <div className="flex justify-center mt-4 space-x-2">
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handlePageChange(i + 1)}
-                    className={`px-3 py-1 border rounded ${
-                      currentPage === i + 1
-                        ? "bg-blue-500 text-white"
-                        : "bg-white text-blue-500"
-                    }`}
-                    disabled={isLoading}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </>
           )}
@@ -529,22 +419,18 @@ export default function DefaultReply() {
 
       <Dialog
         open={!!editingDefaultReply}
-        onOpenChange={() => {
-          setEditingDefaultReply(null);
-          setDuplicateWarning(null);
-        }}
+        onOpenChange={() => setEditingDefaultReply(null)}
       >
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Chỉnh sửa Default Reply</DialogTitle>
             <DialogDescription>
-              Chỉnh sửa nội dung của default reply. Vui lòng đảm bảo từ khóa là
-              duy nhất.
+              Vui lòng đảm bảo từ khóa là duy nhất.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Từ khóa
               </label>
               <input
@@ -564,7 +450,7 @@ export default function DefaultReply() {
                     )
                   );
                 }}
-                className="w-full border rounded px-3 py-2"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-100"
                 placeholder="Nhập từ khóa..."
                 disabled={isLoading}
                 required
@@ -574,7 +460,7 @@ export default function DefaultReply() {
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                 Người tạo
               </label>
               <input
@@ -583,10 +469,10 @@ export default function DefaultReply() {
                   editingDefaultReply?.createdBy
                     ? editingDefaultReply.createdBy.username ||
                       editingDefaultReply.createdBy.email ||
-                      "Unknown User"
-                    : "Unknown User"
+                      "Unknown"
+                    : "Unknown"
                 }
-                className="w-full border rounded px-3 py-2 bg-gray-100"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 dark:text-gray-100"
                 disabled
               />
             </div>
@@ -594,10 +480,7 @@ export default function DefaultReply() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => {
-                setEditingDefaultReply(null);
-                setDuplicateWarning(null);
-              }}
+              onClick={() => setEditingDefaultReply(null)}
               disabled={isLoading}
             >
               Hủy
