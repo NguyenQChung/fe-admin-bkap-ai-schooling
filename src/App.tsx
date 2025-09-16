@@ -38,7 +38,7 @@ import ResetPassword from "./pages/AuthPages/resetpassword";
 export default function App() {
   return (
     <>
-      <Router>
+      <Router basename="/admin">
         <ScrollToTop />
         <ToastContainer position="top-right" autoClose={2000} />
         <Routes>
