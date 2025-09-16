@@ -1,17 +1,14 @@
+// src/layout/AppSidebar.tsx
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 
-// Assume these icons are imported from an icon library
+// Icons (giữ đúng cái bạn đang dùng trong dự án)
 import {
   BoxCubeIcon,
   CalenderIcon,
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
-  ListIcon,
-  PageIcon,
-  PieChartIcon,
-  PlugInIcon,
   TableIcon,
   UserCircleIcon,
   DocsIcon,
@@ -33,23 +30,18 @@ type NavItem = {
 const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
-    name: "Dashboard",
-    subItems: [{ name: "Ecommerce", path: "/", pro: false }],
+    name: "Trang Quản Trị",
+    subItems: [{ name: "Thống kê", path: "/", pro: false }],
   },
   {
     icon: <CalenderIcon />,
-    name: "Calendar",
+    name: "Lịch",
     path: "/calendar",
   },
   {
     icon: <UserCircleIcon />,
     name: "Hồ Sơ Người Dùng",
     path: "/profile",
-  },
-  {
-    name: "Forms",
-    icon: <ListIcon />,
-    subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
   },
   {
     name: "Khởi Tạo Hàng Loạt",
@@ -60,7 +52,7 @@ const navItems: NavItem[] = [
     name: "Trường Học",
     icon: <DocsIcon />,
     subItems: [
-      { name: "Trường Học", path: "/schools", pro: false },
+      { name: "Danh sách Trường", path: "/schools", pro: false },
       { name: "Thêm Trường Học", path: "/add-school", pro: false },
     ],
   },
@@ -68,7 +60,7 @@ const navItems: NavItem[] = [
     name: "Lớp Học",
     icon: <TableIcon />,
     subItems: [
-      { name: "lớp Học", path: "/classes", pro: false },
+      { name: "Danh sách Lớp", path: "/classes", pro: false },
       { name: "Thêm Lớp Học", path: "/add-class", pro: false },
     ],
   },
@@ -76,16 +68,15 @@ const navItems: NavItem[] = [
     name: "Giáo viên",
     icon: <UserIcon />,
     subItems: [
-      { name: "Giáo viên", path: "/teachers", pro: false },
-      { name: "Thêm giáo viên", path: "/new-teacher", pro: false },
+      { name: "Danh sách Giáo viên", path: "/teachers", pro: false },
+      { name: "Thêm Giáo viên", path: "/new-teacher", pro: false },
     ],
   },
-
   {
     name: "Học sinh",
     icon: <GroupIcon />,
     subItems: [
-      { name: "Học sinh", path: "/students", pro: false },
+      { name: "Danh sách Học sinh", path: "/students", pro: false },
       { name: "Thêm Học Sinh", path: "/Add-Students", pro: false },
     ],
   },
@@ -93,7 +84,7 @@ const navItems: NavItem[] = [
     name: "Phản hồi mặc định",
     icon: <ChatIcon />,
     subItems: [
-      { name: "Phản hồi mặc định", path: "/DefaultReply", pro: false },
+      { name: "Danh sách Phản hồi", path: "/DefaultReply", pro: false },
       { name: "Thêm Phản hồi", path: "/add-default-reply", pro: false },
     ],
   },
@@ -101,53 +92,26 @@ const navItems: NavItem[] = [
     name: "Từ Khóa Bị Cấm",
     icon: <AlertHexaIcon />,
     subItems: [
-      { name: "Từ khóa bị cấm", path: "/Forbidden-Keyword", pro: false },
+      { name: "Danh sách Từ khóa", path: "/Forbidden-Keyword", pro: false },
       {
-        name: "Thêm từ khóa ",
+        name: "Thêm Từ khóa",
         path: "/add-Forbidden-Keyword",
         pro: false,
       },
     ],
   },
-  {
-    name: "Pages",
-    icon: <PageIcon />,
-    subItems: [
-      { name: "Blank Page", path: "/blank", pro: false },
-      { name: "404 Error", path: "/error-404", pro: false },
-    ],
-  },
 ];
 
-const othersItems: NavItem[] = [
-  {
-    icon: <PieChartIcon />,
-    name: "Charts",
-    subItems: [
-      { name: "Line Chart", path: "/line-chart", pro: false },
-      { name: "Bar Chart", path: "/bar-chart", pro: false },
-    ],
-  },
-  {
-    icon: <BoxCubeIcon />,
-    name: "UI Elements",
-    subItems: [
-      { name: "Alerts", path: "/alerts", pro: false },
-      { name: "Avatar", path: "/avatars", pro: false },
-      { name: "Badge", path: "/badge", pro: false },
-      { name: "Buttons", path: "/buttons", pro: false },
-      { name: "Images", path: "/images", pro: false },
-      { name: "Videos", path: "/videos", pro: false },
-    ],
-  },
-];
+// Export an empty othersItems array so old imports won't break.
+// (Bạn đã yêu cầu xóa các mục Charts / UI Elements — nên để rỗng.)
+const othersItems: NavItem[] = [];
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
 
   const [openSubmenu, setOpenSubmenu] = useState<{
-    type: "main" | "others";
+    type: "main";
     index: number;
   } | null>(null);
   const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
@@ -162,21 +126,18 @@ const AppSidebar: React.FC = () => {
 
   useEffect(() => {
     let submenuMatched = false;
-    ["main", "others"].forEach((menuType) => {
-      const items = menuType === "main" ? navItems : othersItems;
-      items.forEach((nav, index) => {
-        if (nav.subItems) {
-          nav.subItems.forEach((subItem) => {
-            if (isActive(subItem.path)) {
-              setOpenSubmenu({
-                type: menuType as "main" | "others",
-                index,
-              });
-              submenuMatched = true;
-            }
-          });
-        }
-      });
+    navItems.forEach((nav, index) => {
+      if (nav.subItems) {
+        nav.subItems.forEach((subItem) => {
+          if (isActive(subItem.path)) {
+            setOpenSubmenu({
+              type: "main",
+              index,
+            });
+            submenuMatched = true;
+          }
+        });
+      }
     });
 
     if (!submenuMatched) {
@@ -196,28 +157,24 @@ const AppSidebar: React.FC = () => {
     }
   }, [openSubmenu]);
 
-  const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
+  const handleSubmenuToggle = (index: number) => {
     setOpenSubmenu((prevOpenSubmenu) => {
-      if (
-        prevOpenSubmenu &&
-        prevOpenSubmenu.type === menuType &&
-        prevOpenSubmenu.index === index
-      ) {
+      if (prevOpenSubmenu && prevOpenSubmenu.index === index) {
         return null;
       }
-      return { type: menuType, index };
+      return { type: "main", index };
     });
   };
 
-  const renderMenuItems = (items: NavItem[], menuType: "main" | "others") => (
+  const renderMenuItems = (items: NavItem[]) => (
     <ul className="flex flex-col gap-4">
       {items.map((nav, index) => (
         <li key={nav.name}>
           {nav.subItems ? (
             <button
-              onClick={() => handleSubmenuToggle(index, menuType)}
+              onClick={() => handleSubmenuToggle(index)}
               className={`menu-item group ${
-                openSubmenu?.type === menuType && openSubmenu?.index === index
+                openSubmenu?.index === index
                   ? "menu-item-active"
                   : "menu-item-inactive"
               } cursor-pointer ${
@@ -228,7 +185,7 @@ const AppSidebar: React.FC = () => {
             >
               <span
                 className={`menu-item-icon-size  ${
-                  openSubmenu?.type === menuType && openSubmenu?.index === index
+                  openSubmenu?.index === index
                     ? "menu-item-icon-active"
                     : "menu-item-icon-inactive"
                 }`}
@@ -241,7 +198,6 @@ const AppSidebar: React.FC = () => {
               {(isExpanded || isHovered || isMobileOpen) && (
                 <ChevronDownIcon
                   className={`ml-auto w-5 h-5 transition-transform duration-200 ${
-                    openSubmenu?.type === menuType &&
                     openSubmenu?.index === index
                       ? "rotate-180 text-brand-500"
                       : ""
@@ -275,13 +231,13 @@ const AppSidebar: React.FC = () => {
           {nav.subItems && (isExpanded || isHovered || isMobileOpen) && (
             <div
               ref={(el) => {
-                subMenuRefs.current[`${menuType}-${index}`] = el;
+                subMenuRefs.current[`main-${index}`] = el;
               }}
               className="overflow-hidden transition-all duration-300"
               style={{
                 height:
-                  openSubmenu?.type === menuType && openSubmenu?.index === index
-                    ? `${subMenuHeight[`${menuType}-${index}`]}px`
+                  openSubmenu?.index === index
+                    ? `${subMenuHeight[`main-${index}`]}px`
                     : "0px",
               }}
             >
@@ -306,7 +262,7 @@ const AppSidebar: React.FC = () => {
                                 : "menu-dropdown-badge-inactive"
                             } menu-dropdown-badge`}
                           >
-                            new
+                            mới
                           </span>
                         )}
                         {subItem.pro && (
@@ -357,7 +313,7 @@ const AppSidebar: React.FC = () => {
             <>
               <img
                 className="dark:hidden"
-                src="/images/logo/logo.svg"
+                src="./admin/images/logo/logo.svg"
                 alt="Logo"
                 width={150}
                 height={40}
@@ -397,7 +353,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(navItems)}
             </div>
           </div>
         </nav>
@@ -409,5 +365,5 @@ const AppSidebar: React.FC = () => {
 
 export default AppSidebar;
 
-// 👇 Thêm export này
+// Export both so other files that still import othersItems won't break
 export { navItems, othersItems };

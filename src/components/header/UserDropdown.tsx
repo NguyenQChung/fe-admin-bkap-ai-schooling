@@ -4,7 +4,6 @@ import { Dropdown } from "../ui/dropdown/Dropdown";
 import { Link, useNavigate } from "react-router";
 import axios from "axios";
 
-
 export default function UserDropdown() {
   interface ProfileDTO {
     userId: number;
@@ -72,12 +71,15 @@ export default function UserDropdown() {
           className="flex items-center text-gray-700 dropdown-toggle dark:text-gray-400"
         >
           <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-            <img src="/images/user/owner.jpg" alt="User" />
+            <img src="/admin/images/user/owner.jpg" alt="User" />
           </span>
-          <span className="block mr-1 font-medium text-theme-sm">{profile.fullName || profile.username}</span>
+          <span className="block mr-1 font-medium text-theme-sm">
+            {profile.fullName || profile.username}
+          </span>
           <svg
-            className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
-              }`}
+            className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${
+              isOpen ? "rotate-180" : ""
+            }`}
             width="18"
             height="20"
             viewBox="0 0 18 20"
@@ -102,7 +104,6 @@ export default function UserDropdown() {
           Login
         </Link>
       )}
-
 
       <Dropdown
         isOpen={isOpen}
@@ -141,7 +142,7 @@ export default function UserDropdown() {
                   fill=""
                 />
               </svg>
-              Edit profile
+              Chỉnh sửa hồ sơ
             </DropdownItem>
           </li>
           <li>
@@ -166,7 +167,7 @@ export default function UserDropdown() {
                   fill=""
                 />
               </svg>
-              Account settings
+              Cài Đặt Tài Khoản
             </DropdownItem>
           </li>
           <li>
@@ -191,7 +192,7 @@ export default function UserDropdown() {
                   fill=""
                 />
               </svg>
-              Support
+              Hỗ trợ
             </DropdownItem>
           </li>
         </ul>

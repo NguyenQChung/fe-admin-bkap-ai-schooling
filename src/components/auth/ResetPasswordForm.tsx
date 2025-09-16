@@ -161,7 +161,7 @@ export default function ResetPasswordForm() {
         <div>
           <div className="mb-5 sm:mb-8">
             <h1 className="mb-2 font-semibold text-gray-800 text-title-sm sm:text-title-md">
-              Reset Password
+              Thay Đổi Mật Khẩu
             </h1>
             <p className="text-sm text-gray-500">
               {step === 1

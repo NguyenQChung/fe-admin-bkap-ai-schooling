@@ -56,23 +56,13 @@ export default function ForgotPasswordForm() {
 
   return (
     <div className="flex flex-col flex-1 w-full overflow-y-auto lg:w-1/2 no-scrollbar">
-      <div className="w-full max-w-md mx-auto mb-5 sm:pt-10">
-        <Link
-          to="/"
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-        >
-          <ChevronLeftIcon className="size-5" />
-          Back to dashboard
-        </Link>
-      </div>
-
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
         <div>
           <h1 className="mb-2 font-semibold text-gray-800 text-title-sm sm:text-title-md">
-            Forgot Password
+            Quên Mật Khẩu?
           </h1>
           <p className="text-sm text-gray-500">
-            Enter your email to receive OTP
+            Nhập email để nhận mã OTP đặt lại mật khẩu.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-4 space-y-5">
@@ -82,7 +72,6 @@ export default function ForgotPasswordForm() {
               </Label>
               <Input
                 type="email"
-                placeholder="Enter your email"
                 value={email}
                 onChange={(e: any) => setEmail(e.target.value)}
                 required
@@ -101,7 +90,7 @@ export default function ForgotPasswordForm() {
               {loading && (
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
               )}
-              {loading ? "Đang gửi OTP..." : "Send OTP"}
+              {loading ? "Đang gửi OTP..." : "Gửi OTP"}
             </button>
           </form>
         </div>
