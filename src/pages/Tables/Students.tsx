@@ -499,6 +499,19 @@ export default function Student() {
       sorter: (a: Student, b: Student) => b.fullName.localeCompare(a.fullName),
     },
     {
+      label: "Tên lớp A-Z",
+      value: "classNameAsc",
+      sorter: (a: Student, b: Student) =>
+        a.classEntity.name.localeCompare(b.classEntity.name),
+    },
+    {
+      label: "Tên lớp Z-A",
+      value: "classNameDesc",
+      sorter: (a: Student, b: Student) =>
+        b.classEntity.name.localeCompare(a.classEntity.name),
+    },
+
+    {
       label: "Username A-Z",
       value: "usernameAsc",
       sorter: (a: Student, b: Student) => a.username.localeCompare(b.username),
