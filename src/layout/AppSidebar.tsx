@@ -43,7 +43,7 @@ const navItems: NavItem[] = [
   },
   {
     icon: <UserCircleIcon />,
-    name: "User Profile",
+    name: "Hồ Sơ Người Dùng",
     path: "/profile",
   },
   {
@@ -52,58 +52,58 @@ const navItems: NavItem[] = [
     subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
   },
   {
-    name: "Import",
+    name: "Khởi Tạo Hàng Loạt",
     icon: <BoxCubeIcon />,
-    subItems: [{ name: "Import Excel", path: "/ImportExcel", pro: false }],
+    subItems: [{ name: "Nhập file Excel", path: "/ImportExcel", pro: false }],
   },
   {
-    name: "Schools",
+    name: "Trường Học",
     icon: <DocsIcon />,
     subItems: [
-      { name: "Schools", path: "/schools", pro: false },
-      { name: "Add School", path: "/add-school", pro: false },
+      { name: "Trường Học", path: "/schools", pro: false },
+      { name: "Thêm Trường Học", path: "/add-school", pro: false },
     ],
   },
   {
-    name: "Classes",
+    name: "Lớp Học",
     icon: <TableIcon />,
     subItems: [
-      { name: "Classes", path: "/classes", pro: false },
-      { name: "Add Class", path: "/add-class", pro: false },
+      { name: "lớp Học", path: "/classes", pro: false },
+      { name: "Thêm Lớp Học", path: "/add-class", pro: false },
     ],
   },
   {
-    name: "Teachers",
+    name: "Giáo viên",
     icon: <UserIcon />,
     subItems: [
-      { name: "Teachers", path: "/teachers", pro: false },
-      { name: "New Teacher", path: "/new-teacher", pro: false },
+      { name: "Giáo viên", path: "/teachers", pro: false },
+      { name: "Thêm giáo viên", path: "/new-teacher", pro: false },
     ],
   },
 
   {
-    name: "Student",
+    name: "Học sinh",
     icon: <GroupIcon />,
     subItems: [
-      { name: "Students", path: "/students", pro: false },
-      { name: "Add Students", path: "/Add-Students", pro: false },
+      { name: "Học sinh", path: "/students", pro: false },
+      { name: "Thêm Học Sinh", path: "/Add-Students", pro: false },
     ],
   },
   {
-    name: "DefaultReply",
+    name: "Phản hồi mặc định",
     icon: <ChatIcon />,
     subItems: [
-      { name: "Default Reply", path: "/DefaultReply", pro: false },
-      { name: "Add Default Reply", path: "/add-default-reply", pro: false },
+      { name: "Phản hồi mặc định", path: "/DefaultReply", pro: false },
+      { name: "Thêm Phản hồi", path: "/add-default-reply", pro: false },
     ],
   },
   {
-    name: "ForbiddenKeyword",
+    name: "Từ Khóa Bị Cấm",
     icon: <AlertHexaIcon />,
     subItems: [
-      { name: "Forbidden Keyword", path: "/Forbidden-Keyword", pro: false },
+      { name: "Từ khóa bị cấm", path: "/Forbidden-Keyword", pro: false },
       {
-        name: "Add Forbidden Keyword",
+        name: "Thêm từ khóa ",
         path: "/add-Forbidden-Keyword",
         pro: false,
       },
