@@ -35,6 +35,7 @@ import ImportExcel from "./pages/Tables/ImportExcel";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ForgotPassword from "./pages/AuthPages/ForgotPassword";
 import ResetPassword from "./pages/AuthPages/resetpassword";
+import AuditLog from "./pages/AuditLog/AuditLog"
 export default function App() {
   return (
     <>
@@ -56,6 +57,7 @@ export default function App() {
             <Route path="/profile" element={<UserProfiles />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/blank" element={<Blank />} />
+            <Route path="/audit-logs" element={<AuditLog />} />
 
             {/* Forms */}
             <Route path="/form-elements" element={<FormElements />} />
