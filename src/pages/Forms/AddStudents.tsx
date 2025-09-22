@@ -22,7 +22,6 @@ interface Student {
   defaultPassword: string;
   phone: string;
   birthdate: string;
-  hobbies: string;
   classId: number;
 }
 
@@ -106,7 +105,6 @@ export default function AddStudent() {
     defaultPassword: "",
     phone: "",
     birthdate: "",
-    hobbies: "",
     classId: "",
   });
   const [students, setStudents] = useState<Student[]>([]);
@@ -244,7 +242,6 @@ export default function AddStudent() {
         defaultPassword: student.defaultPassword.trim() || "123456",
         phone: student.phone.trim() || null,
         birthdate: student.birthdate,
-        hobbies: student.hobbies.trim() || null,
         classId: Number(student.classId),
       };
 
@@ -273,7 +270,6 @@ export default function AddStudent() {
         defaultPassword: "",
         phone: "",
         birthdate: "",
-        hobbies: "",
         classId: "",
       });
 
@@ -390,18 +386,6 @@ export default function AddStudent() {
                 className="mt-1 block w-full border rounded-md px-3 py-2"
                 disabled={isSubmitting}
                 required
-              />
-
-              {/* Sở thích */}
-              <input
-                type="text"
-                value={student.hobbies}
-                onChange={(e) =>
-                  setStudent({ ...student, hobbies: e.target.value })
-                }
-                className="mt-1 block w-full border rounded-md px-3 py-2"
-                placeholder="Nhập sở thích..."
-                disabled={isSubmitting}
               />
 
               {/* Lớp học */}
