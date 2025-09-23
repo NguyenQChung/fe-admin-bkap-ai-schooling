@@ -15,6 +15,7 @@ import BarChart from "./pages/Charts/BarChart";
 import Calendar from "./pages/Calendar";
 import School from "./pages/Tables/Schools";
 import Class from "./pages/Tables/Classes";
+import User from "./pages/Tables/User";
 import Teacher from "./pages/Tables/Teachers";
 import FormElements from "./pages/Forms/FormElements";
 import NewTeacher from "./pages/Forms/NewTeacher";
@@ -36,6 +37,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import ForgotPassword from "./pages/AuthPages/ForgotPassword";
 import ResetPassword from "./pages/AuthPages/resetpassword";
 import AuditLog from "./pages/AuditLog/AuditLog"
+import UserProfilePage from "./pages/Forms/UserProfilePage";
 export default function App() {
   return (
     <>
@@ -70,6 +72,7 @@ export default function App() {
               element={<AddForbiddenkeyword />}
             />
             <Route path="/Add-Students" element={<AddStudents />} />
+            <Route path="/user/:id" element={<UserProfilePage />} />
 
             {/* Tables */}
             <Route path="/schools" element={<School />} />
@@ -79,6 +82,8 @@ export default function App() {
             <Route path="/DefaultReply" element={<DefaultReply />} />
             <Route path="/Forbidden-Keyword" element={<ForbiddenKeyword />} />
             <Route path="ImportExcel" element={<ImportExcel />} />
+            <Route path="/users" element={<User />} />
+
             {/* Ui Elements */}
             <Route path="/alerts" element={<Alerts />} />
             <Route path="/avatars" element={<Avatars />} />
