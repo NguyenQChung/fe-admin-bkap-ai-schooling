@@ -44,6 +44,14 @@ const navItems: NavItem[] = [
     path: "/profile",
   },
   {
+  name: "Người dùng",
+  icon: <UserIcon />,
+  subItems: [
+    { name: "Danh sách User", path: "/users", pro: false },
+  
+  ],
+},
+  {
     name: "Khởi Tạo Hàng Loạt",
     icon: <BoxCubeIcon />,
     subItems: [{ name: "Nhập file Excel", path: "/ImportExcel", pro: false }],
