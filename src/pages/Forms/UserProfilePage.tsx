@@ -164,17 +164,7 @@ export default function UserProfilePage() {
             </div>
           )}
 
-          {/* Sở thích */}
-          {profile.objectType === "STUDENT" && (
-            <input
-              className="border p-2 w-full rounded"
-              value={profile.hobbies?.join(", ") || ""}
-              onChange={(e) =>
-                setProfile({ ...profile, hobbies: e.target.value.split(",").map((s) => s.trim()) })
-              }
-              placeholder="Sở thích (cách nhau bởi dấu ,)"
-            />
-          )}
+        
         </div>
 
         <div className="flex space-x-2 mt-6">
