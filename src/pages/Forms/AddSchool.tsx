@@ -59,14 +59,49 @@ export default function AddSchool() {
 
       if (!res.ok) throw new Error("Failed to create school");
 
+      const data = await res.json();
+      // data: { id, name, email, adminEmail, tempPassword, ... }
+
       Swal.fire({
         icon: "success",
-        title: "Thành công!",
-        text: "Tạo trường học thành công!",
-        timer: 2000,
+        title: "Tạo trường học thành công!",
+        html: `
+          <p><b>Email:</b> ${data.adminEmail}</p>
+          <p><b>Mật khẩu tạm:</b> <span id="tempPass">${data.tempPassword}</span></p>
+          <button id="copyBtn" class="swal2-confirm swal2-styled" style="background:#2563eb;margin-top:10px">
+            Copy mật khẩu
+          </button>
+          <button id="resendBtn" class="swal2-confirm swal2-styled" style="background:#10b981;margin-top:10px">
+            Gửi lại email
+          </button>
+        `,
         showConfirmButton: false,
+        didOpen: () => {
+          const copyBtn = document.getElementById("copyBtn");
+          const resendBtn = document.getElementById("resendBtn");
+          copyBtn?.addEventListener("click", () => {
+            const pass = document.getElementById("tempPass")?.textContent || "";
+            navigator.clipboard.writeText(pass);
+            Swal.showValidationMessage("✅ Đã copy mật khẩu!");
+            setTimeout(() => Swal.resetValidationMessage(), 1500);
+          });
+          resendBtn?.addEventListener("click", async () => {
+            try {
+              const resend = await fetch(`${API_URL}/schools/${data.id}/resend-email`, {
+                method: "POST",
+              });
+              if (!resend.ok) throw new Error("Resend failed");
+              Swal.showValidationMessage("📧 Email đã được gửi lại!");
+              setTimeout(() => Swal.resetValidationMessage(), 2000);
+            } catch (err) {
+              Swal.showValidationMessage("❌ Gửi lại email thất bại");
+              setTimeout(() => Swal.resetValidationMessage(), 2000);
+            }
+          });
+        },
       });
 
+      // reset form
       setName("");
       setAddress("");
       setPrincipalName("");
