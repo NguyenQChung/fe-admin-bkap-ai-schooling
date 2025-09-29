@@ -195,6 +195,47 @@ export default function UserPage() {
         }
     };
 
+    // Resend email
+    const handleResendEmail = async (id: number) => {
+        const result = await MySwal.fire({
+            title: "Gửi lại email thông tin tài khoản?",
+            text: "Hành động này sẽ gửi lại email chứa thông tin tài khoản đến người dùng.",
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonText: "Gửi",
+            cancelButtonText: "Hủy",
+        });
+
+        if (!result.isConfirmed) return;
+
+        try {
+            const token = localStorage.getItem("token");
+            const jwtToken = getJwtToken(token);
+            const actorId = getUserIdFromToken(jwtToken);
+            if (!jwtToken || !actorId) throw new Error("Không tìm thấy token hoặc ID người dùng");
+
+            setIsLoading(true);
+            const res = await fetch(`${API_URL}/user/${id}/resend-email`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${jwtToken}`,
+                    "X-User-Id": actorId.toString(),
+                },
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || "Gửi lại email thất bại");
+            }
+
+            MySwal.fire("Thành công", "Email đã được gửi lại thành công", "success");
+        } catch (err: any) {
+            MySwal.fire("Lỗi", `Không thể gửi lại email: ${err.message}`, "error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     // Save edit user
     const handleSaveEdit = async () => {
         if (!editingUser) return;
@@ -262,10 +303,11 @@ export default function UserPage() {
 
                 {message && (
                     <div
-                        className={`p-2 rounded-md border ${message.type === "error"
-                            ? "text-red-700 bg-red-100 border-red-300"
-                            : "text-green-700 bg-green-100 border-green-300"
-                            }`}
+                        className={`p-2 rounded-md border ${
+                            message.type === "error"
+                                ? "text-red-700 bg-red-100 border-red-300"
+                                : "text-green-700 bg-green-100 border-green-300"
+                        }`}
                     >
                         {message.text}
                     </div>
@@ -311,13 +353,13 @@ export default function UserPage() {
                                                     >
                                                         <Edit className="mr-1 h-4 w-4" /> Sửa
                                                     </button>
-
                                                     <button
                                                         onClick={() => handleToggleActive(user)}
-                                                        className={`px-3 py-1 text-sm text-white rounded-lg flex items-center ${user.isActive
-                                                            ? "bg-red-500 hover:bg-red-600"
-                                                            : "bg-green-500 hover:bg-green-600"
-                                                            }`}
+                                                        className={`px-3 py-1 text-sm text-white rounded-lg flex items-center ${
+                                                            user.isActive
+                                                                ? "bg-red-500 hover:bg-red-600"
+                                                                : "bg-green-500 hover:bg-green-600"
+                                                        }`}
                                                     >
                                                         {user.isActive ? (
                                                             <Lock className="mr-1 h-4 w-4" />
@@ -332,6 +374,26 @@ export default function UserPage() {
                                                     >
                                                         <Trash2 className="mr-1 h-4 w-4" /> Xóa
                                                     </button>
+                                                    <button
+                                                        onClick={() => handleResendEmail(user.id)}
+                                                        className="px-3 py-1 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 flex items-center"
+                                                    >
+                                                        <svg
+                                                            className="mr-1 h-4 w-4"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth="2"
+                                                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                                            ></path>
+                                                        </svg>
+                                                        Gửi 
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -344,10 +406,11 @@ export default function UserPage() {
                                 <button
                                     key={i}
                                     onClick={() => handlePageChange(i + 1)}
-                                    className={`px-3 py-1 border rounded-lg ${currentPage === i + 1
-                                        ? "bg-blue-500 text-white"
-                                        : "bg-white text-blue-500 border-gray-300"
-                                        }`}
+                                    className={`px-3 py-1 border rounded-lg ${
+                                        currentPage === i + 1
+                                            ? "bg-blue-500 text-white"
+                                            : "bg-white text-blue-500 border-gray-300"
+                                    }`}
                                 >
                                     {i + 1}
                                 </button>
@@ -382,7 +445,6 @@ export default function UserPage() {
                             className="w-full border rounded-lg px-3 py-2 text-sm"
                             placeholder="Email"
                         />
-
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setEditingUser(null)}>
