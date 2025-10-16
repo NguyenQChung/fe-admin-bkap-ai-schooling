@@ -38,6 +38,7 @@ import ForgotPassword from "./pages/AuthPages/ForgotPassword";
 import ResetPassword from "./pages/AuthPages/resetpassword";
 import AuditLog from "./pages/AuditLog/AuditLog"
 import UserProfilePage from "./pages/Forms/UserProfilePage";
+import EditPricing from "./pages/Forms/EditPricing"
 export default function App() {
   return (
     <>
@@ -62,6 +63,7 @@ export default function App() {
             <Route path="/audit-logs" element={<AuditLog />} />
 
             {/* Forms */}
+            <Route path="/pricing" element={<EditPricing />} />
             <Route path="/form-elements" element={<FormElements />} />
             <Route path="/new-teacher" element={<NewTeacher />} />
             <Route path="/add-school" element={<AddSchool />} />
