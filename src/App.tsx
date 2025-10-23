@@ -39,6 +39,7 @@ import ResetPassword from "./pages/AuthPages/resetpassword";
 import AuditLog from "./pages/AuditLog/AuditLog"
 import UserProfilePage from "./pages/Forms/UserProfilePage";
 import EditPricing from "./pages/Forms/EditPricing"
+import Pricing from "./pages/Tables/UserPricingPage"
 export default function App() {
   return (
     <>
@@ -63,7 +64,7 @@ export default function App() {
             <Route path="/audit-logs" element={<AuditLog />} />
 
             {/* Forms */}
-            <Route path="/pricing" element={<EditPricing />} />
+            <Route path="/edit-pricing" element={<EditPricing />} />
             <Route path="/form-elements" element={<FormElements />} />
             <Route path="/new-teacher" element={<NewTeacher />} />
             <Route path="/add-school" element={<AddSchool />} />
@@ -77,6 +78,7 @@ export default function App() {
             <Route path="/user/:id" element={<UserProfilePage />} />
 
             {/* Tables */}
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="/schools" element={<School />} />
             <Route path="/classes" element={<Class />} />
             <Route path="/teachers" element={<Teacher />} />
