@@ -13,7 +13,7 @@ export default function SidebarWidget() {
       <div className="flex flex-col gap-3">
         {/* Nút về trang chủ */}
         <a
-          href="https://aispark.bkap.vn"
+          href="https://bkapai.vn"
           className="flex items-center justify-center p-3 font-medium text-white rounded-lg bg-blue-500 text-theme-sm hover:bg-blue-600"
         >
           Trang chủ
